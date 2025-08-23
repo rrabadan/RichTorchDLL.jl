@@ -1,0 +1,14 @@
+name = "RichTorchDLL"
+uuid = "94a7de8e-69f5-493b-86e3-4f0a1fe55cc5"
+authors = ["Raul Rabadan <raul.iraq.rabadan.trejo@cern.ch>"]
+version = "0.1.0"
+
+[deps]
+Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
+IJulia = "7073ff75-c697-5162-941a-fcdaad2a7d2a"
+UnROOT = "3cd96dde-e98d-4713-81e9-a4a1b0235ce9"
+
+[compat]
+Flux = "0.16.5"
+IJulia = "1.29.2"
+UnROOT = "0.10.37"
