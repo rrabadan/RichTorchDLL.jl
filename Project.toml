@@ -6,9 +6,11 @@ version = "0.1.0"
 [deps]
 Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
 IJulia = "7073ff75-c697-5162-941a-fcdaad2a7d2a"
+ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
 UnROOT = "3cd96dde-e98d-4713-81e9-a4a1b0235ce9"
 
 [compat]
 Flux = "0.16.5"
 IJulia = "1.29.2"
+ProgressMeter = "1.10.4"
 UnROOT = "0.10.37"
