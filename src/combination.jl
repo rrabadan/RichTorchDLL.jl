@@ -70,3 +70,66 @@ function calculate_auc(scores, targets)
 
     return correct / total
 end
+
+function pairwise_ranking_loss_sampled(scores, targets; max_pairs = 10000)
+    pos_indices = findall(targets .== 1)
+    neg_indices = findall(targets .== 0)
+
+    if isempty(pos_indices) || isempty(neg_indices)
+        return 0.0  # Handle edge case
+    end
+
+    # Determine total possible pairs
+    total_pairs = length(pos_indices) * length(neg_indices)
+
+    # If fewer than max_pairs, use all pairs
+    if total_pairs <= max_pairs
+        return pairwise_ranking_loss(scores, targets)
+    end
+
+    # Otherwise, sample pairs
+    loss_sum = 0.0
+    n_samples = min(max_pairs, total_pairs)
+
+    for _ = 1:n_samples
+        i = rand(pos_indices)
+        j = rand(neg_indices)
+        loss_sum += σ(scores[j] - scores[i])
+    end
+
+    return loss_sum / n_samples
+end
+
+# Memory-efficient AUC calculation using sampling
+function calculate_auc_sampled(scores, targets; max_pairs = 10000)
+    pos_indices = findall(targets .== 1)
+    neg_indices = findall(targets .== 0)
+
+    if isempty(pos_indices) || isempty(neg_indices)
+        return 0.5  # Default for edge case
+    end
+
+    # Determine total possible pairs
+    total_pairs = length(pos_indices) * length(neg_indices)
+
+    # If fewer than max_pairs, use all pairs
+    if total_pairs <= max_pairs
+        return calculate_auc(scores, targets)
+    end
+
+    # Otherwise, sample pairs
+    correct = 0.0
+    n_samples = min(max_pairs, total_pairs)
+
+    for _ = 1:n_samples
+        i = rand(pos_indices)
+        j = rand(neg_indices)
+        if scores[i] > scores[j]
+            correct += 1.0
+        elseif scores[i] == scores[j]
+            correct += 0.5
+        end
+    end
+
+    return correct / n_samples
+end
