@@ -1,21 +1,13 @@
-# Negated loss for maximizing AUC
-function neg_auc_loss(params, rich, torch, target)
-    -loss(params, rich, torch, target)
-end
+using Flux: train!, Descent
 
-# Training interface
-function train_model(params, rich, torch, target; epochs=100, lr=0.01)
-    ps = Flux.params(params)
+function train_model!(model, X, y; epochs=100, lr=0.01)
     opt = Descent(lr)
     losses = []
     for epoch = 1:epochs
-        gs = gradient(ps) do
-            neg_auc_loss(params, rich, torch, target)
-        end
-        Flux.Optimise.update!(opt, ps, gs)
-        l = neg_auc_loss(params, rich, torch, target)
-        push!(losses, l)
-        println("Epoch $epoch, Loss: $l")
+        train!(loss, model, [(X, y)], opt)
+        current_loss = loss(model, X, y)
+        push!(losses, current_loss)
+        println("Epoch $epoch, Loss: $current_loss")
     end
-    return params, losses
+    return losses
 end

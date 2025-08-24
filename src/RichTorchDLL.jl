@@ -1,11 +1,10 @@
 module RichTorchDLL
 
-greet() = print("Hello World!")
-
 using Flux
+using ProgressMeter
 
-export model, loss
-export train_model
+export combination_model, loss
+export train_model!
 
 include("combination.jl")
 include("training.jl")

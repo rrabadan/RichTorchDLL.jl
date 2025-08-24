@@ -1,11 +1,8 @@
-# Sigmoid function for clarity and numerical stability
-σ(x) = 1 / (1 + exp(-x))
-
-
-function model(W, b, rich, torch)
-    return rich * (W * torch .+ b)
+function combination_model()
+    return Dense(2 => 1)
 end
 
+σ(x) = 1 / (1 + exp(-x))
 
 # Differentiable AUC surrogate loss (pairwise ranking)
 function auc_surrogate_loss(scores, targets)
@@ -18,10 +15,8 @@ function auc_surrogate_loss(scores, targets)
     return loss / (length(pos) * length(neg))
 end
 
-
-# Accepts params as a tuple for easy use with Flux
-function loss(params, rich, torch, target)
-    W, b = params
-    pred = model(W, b, rich, torch)
-    return auc_surrogate_loss(pred, target)
+# Negated loss for maximizing AUC
+function loss(model, X, y)
+    scores = model(X)
+    -auc_surrogate_loss(scores, y)
 end
