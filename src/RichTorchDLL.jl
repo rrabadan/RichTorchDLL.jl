@@ -3,7 +3,7 @@ module RichTorchDLL
 using Flux
 using ProgressMeter
 
-export combination_model, loss
+export combination_model, constrained_combination_model, loss
 export train_model!
 
 include("combination.jl")
