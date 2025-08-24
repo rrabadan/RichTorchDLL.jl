@@ -1,4 +1,4 @@
-function combination_model(; init_w=nothing, init_b=nothing)
+function combination_model(; init_w = nothing, init_b = nothing)
     model = Dense(2 => 1)
     if !isnothing(init_w)
         model.weight .= init_w
@@ -9,15 +9,15 @@ function combination_model(; init_w=nothing, init_b=nothing)
     return model
 end
 
-function constrained_combination_model(; init_w2=0.1f0, init_b=0.0f0)
-    model = combination_model(init_w=[1.0f0 - init_w2], init_b=[init_b])
+function constrained_combination_model(; init_w2 = 0.1f0, init_b = 0.0f0)
+    model = combination_model(init_w = [1.0f0 - init_w2], init_b = [init_b])
 
     # Create a wrapper to ensure first weight stays fixed
     function forward(X)
         model.weight[1, 1] = 1.0f0 # reset w1 to 1.0
         return model(X)
     end
-    return (model=model, forward=forward)
+    return (model = model, forward = forward)
 end
 
 # Sigmoid function definition
