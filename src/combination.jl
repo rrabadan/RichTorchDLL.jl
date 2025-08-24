@@ -24,18 +24,49 @@ end
 σ(x) = 1 / (1 + exp(-x))
 
 # Differentiable AUC surrogate loss (pairwise ranking)
-function auc_surrogate_loss(scores, targets)
-    pos = findall(targets .== 1)
-    neg = findall(targets .== 0)
-    loss = 0.0
-    for i in pos, j in neg
-        loss += σ(scores[j] - scores[i])
+function pairwise_ranking_loss(scores, targets)
+    pos_indices = findall(targets .== 1)
+    neg_indices = findall(targets .== 0)
+
+    if isempty(pos_indices) || isempty(neg_indices)
+        return 0.0  # Handle edge case
     end
-    return loss / (length(pos) * length(neg))
+
+    # Extract scores
+    pos_scores = scores[pos_indices]
+    neg_scores = scores[neg_indices]
+
+    # Compute all differences using broadcasting
+    diffs = neg_scores .- permutedims(pos_scores)
+
+    # Apply sigmoid to all differences at once
+    sig_diffs = σ.(diffs)
+
+    # Sum and normalize
+    return sum(sig_diffs) / (length(pos_indices) * length(neg_indices))
 end
 
-# Negated loss for maximizing AUC
 function loss(model, X, y)
-    scores = model(X)
-    -auc_surrogate_loss(scores, y)
+    scores = vec(model(X))
+    return pairwise_ranking_loss(scores, y)
+end
+
+# AUC calculation (for evaluation)
+function calculate_auc(scores, targets)
+    pos = findall(targets .== 1)
+    neg = findall(targets .== 0)
+
+    # Count correct pairwise rankings
+    correct = 0
+    total = length(pos) * length(neg)
+
+    for i in pos, j in neg
+        if scores[i] > scores[j]
+            correct += 1
+        elseif scores[i] == scores[j]
+            correct += 0.5  # Tie counts as half correct
+        end
+    end
+
+    return correct / total
 end
