@@ -11,8 +11,10 @@ export combination_model,
     calculate_auc,
     calculate_auc_sampled
 export train_model!, prepare_data
+export parameter_scan, visualize_scan_results
 
 include("combination.jl")
 include("training.jl")
+include("scan.jl")
 
 end # module RichTorchDLL
