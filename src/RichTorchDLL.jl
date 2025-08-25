@@ -12,7 +12,7 @@ export combination_model,
     calculate_auc_sampled
 export train_model!, prepare_data
 export parameter_scan, visualize_scan_results
-export find_workingpoints
+export find_workingpoints, misid_eff_points, misid_eff_dataframe
 
 include("combination.jl")
 include("training.jl")
