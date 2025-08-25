@@ -2,9 +2,9 @@ function parameter_scan(
     rich,
     torch,
     labels;
-    w_range = -2.0:0.1:2.0,
-    b_range = -2.0:0.1:2.0,
-    verbose = true,
+    w_range=-2.0:0.1:2.0,
+    b_range=-2.0:0.1:2.0,
+    verbose=true,
 )
     # Create containers for results
     n_w = length(w_range)
@@ -37,7 +37,7 @@ function parameter_scan(
             scores = rich .+ (w .* torch .+ b)
 
             # Calculate metrics using threshold at 0
-            predictions = scores .> 0
+            predictions = scores .> 0.01
 
             # True positives
             tp = sum(predictions[pos_indices])
@@ -54,7 +54,7 @@ function parameter_scan(
                 2 * (efficiency * purity) / (efficiency + purity) : 0.0
 
             # Also calculate AUC for reference
-            auc = calculate_auc_sampled(scores, labels, max_pairs = 10000)
+            auc = calculate_auc_sampled(scores, labels, max_pairs=10000)
 
             # Store results
             efficiencies[i, j] = efficiency
@@ -92,24 +92,24 @@ function parameter_scan(
     # Return results and visualization data
     return (
         # Parameter grids
-        w_range = w_range,
-        b_range = b_range,
+        w_range=w_range,
+        b_range=b_range,
 
         # Result matrices
-        efficiencies = efficiencies,
-        purities = purities,
-        f1_scores = f1_scores,
-        aucs = aucs,
+        efficiencies=efficiencies,
+        purities=purities,
+        f1_scores=f1_scores,
+        aucs=aucs,
 
         # Best parameters
-        best_efficiency = (w = max_eff_w, b = max_eff_b, value = max_eff),
-        best_f1 = (w = max_f1_w, b = max_f1_b, value = max_f1),
-        best_auc = (w = max_auc_w, b = max_auc_b, value = max_auc),
+        best_efficiency=(w=max_eff_w, b=max_eff_b, value=max_eff),
+        best_f1=(w=max_f1_w, b=max_f1_b, value=max_f1),
+        best_auc=(w=max_auc_w, b=max_auc_b, value=max_auc),
     )
 end
 
 # Function to visualize scan results
-function visualize_scan_results(scan_results; metric = :auc)
+function visualize_scan_results(scan_results; metric=:auc)
     w_range = scan_results.w_range
     b_range = scan_results.b_range
 
@@ -137,19 +137,19 @@ function visualize_scan_results(scan_results; metric = :auc)
         w_range,
         b_range,
         data',
-        xlabel = "w",
-        ylabel = "b",
-        title = title,
-        color = :viridis,
+        xlabel="w",
+        ylabel="b",
+        title=title,
+        color=:viridis,
     )
 
     # Mark the best point
     scatter!(
         [best.w],
         [best.b],
-        color = :red,
-        markersize = 5,
-        label = "Best: ($(best.w), $(best.b))",
+        color=:red,
+        markersize=5,
+        label="Best: ($(best.w), $(best.b))",
     )
 
     # Return the plot for further customization
@@ -159,19 +159,19 @@ end
 function optimize_combination_model(rich, torch, labels)
     # Parameter scan
     scan_results =
-        parameter_scan(rich, torch, labels, w_range = -2.0:0.1:2.0, b_range = -2.0:0.1:2.0)
+        parameter_scan(rich, torch, labels, w_range=-2.0:0.1:2.0, b_range=-2.0:0.1:2.0)
 
     # Visualize efficiency
-    p1 = visualize_scan_results(scan_results, metric = :efficiency)
+    p1 = visualize_scan_results(scan_results, metric=:efficiency)
 
     # Visualize F1 score (balance of efficiency and purity)
-    p2 = visualize_scan_results(scan_results, metric = :f1)
+    p2 = visualize_scan_results(scan_results, metric=:f1)
 
     # Visualize AUC
-    p3 = visualize_scan_results(scan_results, metric = :auc)
+    p3 = visualize_scan_results(scan_results, metric=:auc)
 
     # Combine plots
-    plot(p1, p2, p3, layout = (1, 3), size = (1200, 400))
+    plot(p1, p2, p3, layout=(1, 3), size=(1200, 400))
 
     # Return optimal parameters
     return scan_results
