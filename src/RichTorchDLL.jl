@@ -12,9 +12,11 @@ export combination_model,
     calculate_auc_sampled
 export train_model!, prepare_data
 export parameter_scan, visualize_scan_results
+export find_workingpoints
 
 include("combination.jl")
 include("training.jl")
 include("scan.jl")
+include("pidperformance.jl")
 
 end # module RichTorchDLL
