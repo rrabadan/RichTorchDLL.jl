@@ -85,7 +85,8 @@ function train_model!(
             eval_scores = vec(model(X_eval))
             eval_loss =
                 pairwise_ranking_loss_sampled(eval_scores, y_eval, max_pairs = Int(1e6))
-            eval_auc = calculate_auc_sampled(eval_scores, y_eval, max_pairs = Int(1e6))
+            eval_auc =
+                calculate_auc_stratified_sampled(eval_scores, y_eval, max_pairs = Int(1e6))
 
             push!(results, (epoch, avg_batch_loss, eval_loss, eval_auc))
 

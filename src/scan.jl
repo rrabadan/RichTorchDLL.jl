@@ -53,8 +53,8 @@ function parameter_scan(
                 (efficiency > 0 && purity > 0) ?
                 2 * (efficiency * purity) / (efficiency + purity) : 0.0
 
-            # Also calculate AUC for reference
-            auc = calculate_auc_sampled(scores, labels, max_pairs = 10000)
+            # Also calculate AUC (stratified sampling)
+            auc = calculate_auc_stratified_sampled(scores, labels, max_pairs = 10000)
 
             # Store results
             efficiencies[i, j] = efficiency
