@@ -9,7 +9,8 @@ export combination_model,
     pairwise_ranking_loss_sampled,
     loss,
     calculate_auc,
-    calculate_auc_sampled
+    calculate_auc_sampled,
+    calculate_auc_stratified_sampled
 export train_model!, prepare_data
 export parameter_scan, visualize_scan_results
 export find_workingpoints, misid_eff_points, misid_eff_dataframe

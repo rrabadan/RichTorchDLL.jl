@@ -10,7 +10,7 @@ function combination_model(; init_w = nothing, init_b = nothing)
 end
 
 function constrained_combination_model(; init_w2 = 0.1f0, init_b = 0.0f0)
-    model = combination_model(init_w = [1.0f0 - init_w2], init_b = [init_b])
+    model = combination_model(init_w = [1.0f0, init_w2], init_b = [init_b])
 
     # Create a wrapper to ensure first weight stays fixed
     function forward(X)
@@ -23,7 +23,6 @@ end
 # Sigmoid function definition
 σ(x) = 1 / (1 + exp(-x))
 
-# Differentiable AUC surrogate loss (pairwise ranking)
 function pairwise_ranking_loss(scores, targets)
     pos_indices = findall(targets .== 1)
     neg_indices = findall(targets .== 0)
@@ -39,8 +38,18 @@ function pairwise_ranking_loss(scores, targets)
     # Compute all differences using broadcasting
     diffs = neg_scores .- permutedims(pos_scores)
 
+    # Clip differences to prevent extreme values
+    diffs_clipped = clamp.(diffs, -50.0, 50.0)
+
     # Apply sigmoid to all differences at once
-    sig_diffs = σ.(diffs)
+    sig_diffs = σ.(diffs_clipped)
+
+    # Check for NaNs
+    if any(isnan, sig_diffs)
+        println("WARNING: NaN in sigmoid output")
+        println("Min diff: $(minimum(diffs)), Max diff: $(maximum(diffs))")
+        return 0.0  # Return a default value instead of NaN
+    end
 
     # Sum and normalize
     return sum(sig_diffs) / (length(pos_indices) * length(neg_indices))
@@ -132,4 +141,91 @@ function calculate_auc_sampled(scores, targets; max_pairs = 10000)
     end
 
     return correct / n_samples
+end
+
+
+function threshold_auc_surrogate_loss(scores, targets)
+    pos = findall(targets .== 1)
+    neg = findall(targets .== 0)
+    loss = 0.0
+
+    # Hinge-like losses for threshold violations
+    threshold_weight = 2.0  # Weight for threshold violations
+
+    for i in pos
+        # Penalize positive samples with score <= 0
+        if scores[i] <= 0
+            loss += threshold_weight * σ(-scores[i])
+        end
+    end
+
+    for j in neg
+        # Penalize negative samples with score > 0
+        if scores[j] > 0
+            loss += threshold_weight * σ(scores[j])
+        end
+    end
+
+    # Also include ranking component (original pairwise loss)
+    for i in pos, j in neg
+        loss += σ(scores[j] - scores[i])
+    end
+
+    # Normalize loss
+    total_pairs = length(pos) * length(neg)
+    total_samples = length(pos) + length(neg)
+    normalization = total_pairs + threshold_weight * total_samples
+
+    return loss / normalization
+end
+
+# Stratified sampled AUC estimator (stable under class imbalance)
+"""
+    calculate_auc_stratified_sampled(scores, targets; max_pairs=10000, repeats=1)
+
+Estimate AUC by sampling a small stratified set of positives and negatives. This
+ensures the minority class is represented and keeps the total number of pairs
+bounded by `max_pairs`. If `repeats>1` the function returns a NamedTuple with
+mean and std over repeats.
+"""
+function calculate_auc_stratified_sampled(
+    scores::AbstractVector{<:Real},
+    targets::AbstractVector{<:Integer};
+    max_pairs::Integer = 10000,
+    repeats::Integer = 1,
+)
+    @assert length(scores) == length(targets)
+    pos = findall(targets .== 1)
+    neg = findall(targets .== 0)
+    npos = length(pos)
+    nneg = length(neg)
+    if npos == 0 || nneg == 0
+        return 0.5
+    end
+
+    aucs = Float64[]
+    for _ = 1:repeats
+        # choose stratified sample sizes
+        Spos = min(npos, ceil(Int, sqrt(max_pairs)))
+        Sneg = min(nneg, max(1, floor(Int, max_pairs ÷ max(1, Spos))))
+
+        sampled_pos = rand(pos, Spos)
+        sampled_neg = rand(neg, Sneg)
+
+        pos_scores = scores[sampled_pos]
+        neg_scores = scores[sampled_neg]
+
+        # compute pairwise comparisons (Spos x Sneg)
+        gt = sum(pos_scores .> permutedims(neg_scores))
+        eq = sum(pos_scores .== permutedims(neg_scores))
+        total_pairs = Spos * Sneg
+        auc_est = (gt + 0.5 * eq) / total_pairs
+        push!(aucs, auc_est)
+    end
+
+    if repeats == 1
+        return first(aucs)
+    else
+        return (mean = mean(aucs), std = std(aucs))
+    end
 end
