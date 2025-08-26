@@ -190,13 +190,13 @@ function parameter_scan_1d(
     rich,
     torch,
     labels;
-    fixed::Symbol = :w,
     fixed_value::Real = 1.0,
+    scan::Symbol = :w,
     scan_range = -2.0:0.1:2.0,
     threshold::Real = 0.0,
     verbose::Bool = true,
 )
-    @assert fixed == :w || fixed == :b
+    @assert scan == :w || scan == :b
 
     n = length(scan_range)
     efficiency = zeros(n)
@@ -210,11 +210,11 @@ function parameter_scan_1d(
     n_neg = length(neg_indices)
 
     if verbose
-        println("1D scan over $(n) values of $(fixed) (fixed other = $(fixed_value)))")
+        println("1D scan over $(n) values of $(scan) (fixed other = $(fixed_value)))")
     end
 
     for (i, param) in enumerate(scan_range)
-        if fixed == :w
+        if scan == :w
             w = param
             b = fixed_value
         else
@@ -241,13 +241,13 @@ function parameter_scan_1d(
     best = (index = best_idx, param = scan_range[best_idx], auc = auc[best_idx])
 
     return (
-        param_name = fixed,
+        param_name = :scan,
         param_range = scan_range,
+        best = best,
+        auc = auc,
         efficiency = efficiency,
         purity = purity,
         f1 = f1,
-        auc = auc,
-        best = best,
     )
 end
 
@@ -256,7 +256,7 @@ end
 
 Plot a metric vs the scanned parameter. `scan1d` is result from `parameter_scan_1d`.
 """
-function visualize_1d_scan(scan1d; metric::Symbol = :efficiency, xlabel = nothing)
+function visualize_1d_scan(scan1d; metric::Symbol = :auc, xlabel = nothing)
     param_range = scan1d.param_range
     if metric == :efficiency
         y = scan1d.efficiency
