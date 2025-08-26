@@ -176,3 +176,115 @@ function optimize_combination_model(rich, torch, labels)
     # Return optimal parameters
     return scan_results
 end
+
+# -- One-dimensional scan (fix one parameter, scan the other) -------------------
+"""
+    parameter_scan_1d(rich, torch, labels; fixed=:w, fixed_value=1.0, scan_range= -2.0:0.1:2.0,
+                      threshold=0.0, verbose=true)
+
+Scan a single parameter while keeping the other fixed. `fixed` must be `:w` or `:b`.
+Returns a NamedTuple with fields: `param_name`, `param_range`, `efficiency`, `purity`,
+`f1`, `auc`, and `best` (tuple with index, value, metric).
+"""
+function parameter_scan_1d(
+    rich,
+    torch,
+    labels;
+    fixed::Symbol = :w,
+    fixed_value::Real = 1.0,
+    scan_range = -2.0:0.1:2.0,
+    threshold::Real = 0.0,
+    verbose::Bool = true,
+)
+    @assert fixed == :w || fixed == :b
+
+    n = length(scan_range)
+    efficiency = zeros(n)
+    purity = zeros(n)
+    f1 = zeros(n)
+    auc = zeros(n)
+
+    pos_indices = findall(labels .== 1)
+    neg_indices = findall(labels .== 0)
+    n_pos = length(pos_indices)
+    n_neg = length(neg_indices)
+
+    if verbose
+        println("1D scan over $(n) values of $(fixed) (fixed other = $(fixed_value)))")
+    end
+
+    for (i, param) in enumerate(scan_range)
+        if fixed == :w
+            w = param
+            b = fixed_value
+        else
+            w = fixed_value
+            b = param
+        end
+
+        scores = rich .+ (w .* torch .+ b)
+        preds = scores .> threshold
+
+        tp = sum(preds[pos_indices])
+        fp = sum(preds[neg_indices])
+
+        efficiency[i] = tp / (n_pos > 0 ? n_pos : 1)
+        purity[i] = (tp + fp) > 0 ? tp / (tp + fp) : 0.0
+        f1[i] =
+            (efficiency[i] > 0 && purity[i] > 0) ?
+            2 * (efficiency[i] * purity[i]) / (efficiency[i] + purity[i]) : 0.0
+        auc[i] = calculate_auc_stratified_sampled(scores, labels, max_pairs = 10000)
+    end
+
+    # best by AUC
+    best_idx = argmax(auc)
+    best = (index = best_idx, param = scan_range[best_idx], auc = auc[best_idx])
+
+    return (
+        param_name = fixed,
+        param_range = scan_range,
+        efficiency = efficiency,
+        purity = purity,
+        f1 = f1,
+        auc = auc,
+        best = best,
+    )
+end
+
+"""
+    visualize_1d_scan(scan1d; metric=:efficiency, xlabel=nothing)
+
+Plot a metric vs the scanned parameter. `scan1d` is result from `parameter_scan_1d`.
+"""
+function visualize_1d_scan(scan1d; metric::Symbol = :efficiency, xlabel = nothing)
+    param_range = scan1d.param_range
+    if metric == :efficiency
+        y = scan1d.efficiency
+        title = "Efficiency"
+    elseif metric == :purity
+        y = scan1d.purity
+        title = "Purity"
+    elseif metric == :f1
+        y = scan1d.f1
+        title = "F1 score"
+    else
+        y = scan1d.auc
+        title = "AUC"
+    end
+
+    p = plot(param_range, y, lw = 2, marker = :circle, label = string(title))
+    best = scan1d.best
+    v = best.param
+    best_index = best.index
+    bestval = y[best_index]
+    scatter!([v], [bestval], color = :red, markersize = 6, label = "best")
+
+    if xlabel === nothing
+        xlabel = string(scan1d.param_name)
+    end
+    xlabel!(xlabel)
+    ylabel!(title)
+    title!("$(title) vs $(scan1d.param_name)")
+
+    return p
+end
