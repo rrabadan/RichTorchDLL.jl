@@ -1,3 +1,21 @@
+"""
+    parameter_scan(rich, torch, labels; w_range=-2.0:0.1:2.0, b_range=-2.0:0.1:2.0, verbose=true)
+
+Performs a parameter scan over specified ranges for weights (`w_range`) and biases (`b_range`) using the provided `rich` and `torch` dlls and a set of `labels`.
+
+# Arguments
+- `rich`: The RICH DLLs.
+- `torch`: The TORCH DLLs.
+- `labels`: Labels or identifiers for the scan (0, 1).
+
+# Keyword Arguments
+- `w_range`: Range of weight values to scan over (default: -2.0:0.1:2.0).
+- `b_range`: Range of bias values to scan over (default: -2.0:0.1:2.0).
+- `verbose`: If `true`, prints progress and additional information during the scan (default: `true`).
+
+# Returns
+Returns the results of the parameter scan, as a data structure containing performance metrics or scan outcomes for each parameter combination.
+"""
 function parameter_scan(
     rich,
     torch,
@@ -13,6 +31,7 @@ function parameter_scan(
     # Metrics to track
     efficiencies = zeros(n_w, n_b)  # Efficiency (TP/P)
     purities = zeros(n_w, n_b)      # Purity (TP/(TP+FP))
+    misids = zeros(n_w, n_b)        # Misidentification probability (FP/N)
     f1_scores = zeros(n_w, n_b)     # F1 score
     aucs = zeros(n_w, n_b)          # AUC
 
@@ -47,6 +66,7 @@ function parameter_scan(
             # Calculate metrics
             efficiency = tp / n_pos
             purity = tp > 0 ? tp / (tp + fp) : 0.0
+            misid = fp / n_neg  # Misidentification probability
 
             # F1 score (harmonic mean of efficiency and purity)
             f1 =
@@ -59,6 +79,7 @@ function parameter_scan(
             # Store results
             efficiencies[i, j] = efficiency
             purities[i, j] = purity
+            misids[i, j] = misid
             f1_scores[i, j] = f1
             aucs[i, j] = auc
         end
@@ -69,6 +90,12 @@ function parameter_scan(
     max_eff_w = w_range[max_eff_idx[1]]
     max_eff_b = b_range[max_eff_idx[2]]
     max_eff = efficiencies[max_eff_idx]
+
+    # Find minimum misid rate (best parameters for lowest misid)
+    min_misid_idx = argmin(misids)
+    min_misid_w = w_range[min_misid_idx[1]]
+    min_misid_b = b_range[min_misid_idx[2]]
+    min_misid = misids[min_misid_idx]
 
     # Find optimal parameters for F1 score (balance of efficiency and purity)
     max_f1_idx = argmax(f1_scores)
@@ -85,6 +112,7 @@ function parameter_scan(
     if verbose
         println("\nResults:")
         println("Max Efficiency: $max_eff at w=$max_eff_w, b=$max_eff_b")
+        println("Min Misid: $min_misid at w=$min_misid_w, b=$min_misid_b")
         println("Max F1 Score: $max_f1 at w=$max_f1_w, b=$max_f1_b")
         println("Max AUC: $max_auc at w=$max_auc_w, b=$max_auc_b")
     end
@@ -98,17 +126,31 @@ function parameter_scan(
         # Result matrices
         efficiencies = efficiencies,
         purities = purities,
+        misids = misids,
         f1_scores = f1_scores,
         aucs = aucs,
 
         # Best parameters
         best_efficiency = (w = max_eff_w, b = max_eff_b, value = max_eff),
+        best_misid = (w = min_misid_w, b = min_misid_b, value = min_misid),
         best_f1 = (w = max_f1_w, b = max_f1_b, value = max_f1),
         best_auc = (w = max_auc_w, b = max_auc_b, value = max_auc),
     )
 end
 
 # Function to visualize scan results
+"""
+    visualize_scan_results(scan_results; metric=:auc)
+
+Visualizes the results of a parameter scan.
+
+# Arguments
+- `scan_results`: The results from running `parameter_scan` function.
+- `metric`: Symbol specifying which metric to visualize (default is `:auc`).
+
+# Description
+Generates a plot or visualization to help analyze the performance of different parameter configurations based on the specified metric.
+"""
 function visualize_scan_results(scan_results; metric = :auc)
     w_range = scan_results.w_range
     b_range = scan_results.b_range
@@ -118,10 +160,14 @@ function visualize_scan_results(scan_results; metric = :auc)
         data = scan_results.efficiencies
         title = "Efficiency (TP/P)"
         best = scan_results.best_efficiency
+    elseif metric == :misid
+        data = scan_results.misids
+        title = "Misidentification Probability (FP/N)"
+        best = scan_results.best_misid
     elseif metric == :purity
         data = scan_results.purities
         title = "Purity (TP/(TP+FP))"
-        best = scan_results.best_f1  # Use F1 best point as proxy
+        best = scan_results.best_f1
     elseif metric == :f1
         data = scan_results.f1_scores
         title = "F1 Score"
@@ -156,6 +202,19 @@ function visualize_scan_results(scan_results; metric = :auc)
     current()
 end
 
+"""
+    optimize_combination_model(rich, torch, labels)
+
+Optimize a combination model using the provided `rich` and `torch` data, along with the corresponding `labels`.
+
+# Arguments
+- `rich`: The RICH DLLs.
+- `torch`: The TORCH DLLs.
+- `labels`: Labels or identifiers for the scan (0, 1).
+
+# Returns
+Returns the results of the scan over (w, b) parameter space.
+"""
 function optimize_combination_model(rich, torch, labels)
     # Parameter scan
     scan_results =
@@ -164,14 +223,17 @@ function optimize_combination_model(rich, torch, labels)
     # Visualize efficiency
     p1 = visualize_scan_results(scan_results, metric = :efficiency)
 
+    # Visualize misidentification probability
+    p2 = visualize_scan_results(scan_results, metric = :misid)
+
     # Visualize F1 score (balance of efficiency and purity)
-    p2 = visualize_scan_results(scan_results, metric = :f1)
+    p3 = visualize_scan_results(scan_results, metric = :f1)
 
     # Visualize AUC
-    p3 = visualize_scan_results(scan_results, metric = :auc)
+    p4 = visualize_scan_results(scan_results, metric = :auc)
 
     # Combine plots
-    plot(p1, p2, p3, layout = (1, 3), size = (1200, 400))
+    plot(p1, p2, p3, p4, layout = (2, 2), size = (1000, 800))
 
     # Return optimal parameters
     return scan_results
@@ -179,12 +241,33 @@ end
 
 # -- One-dimensional scan (fix one parameter, scan the other) -------------------
 """
-    parameter_scan_1d(rich, torch, labels; fixed=:w, fixed_value=1.0, scan_range= -2.0:0.1:2.0,
-                      threshold=0.0, verbose=true)
+    parameter_scan_1d(
+        rich,
+        torch,
+        labels;
+        fixed_value::Real=1.0,
+        scan::Symbol=:w,
+        scan_range=-2.0:0.1:2.0,
+        threshold::Real=0.0,
+        verbose::Bool=true,
+    )
 
-Scan a single parameter while keeping the other fixed. `fixed` must be `:w` or `:b`.
-Returns a NamedTuple with fields: `param_name`, `param_range`, `efficiency`, `purity`,
-`f1`, `auc`, and `best` (tuple with index, value, metric).
+Performs a one-dimensional parameter scan over a specified parameter of the system.
+
+# Arguments
+- `rich`: The RICH DLL.
+- `torch`: The TORCH DLL.
+- `labels`: Labels or identifiers for the scan (0, 1)
+
+# Keyword Arguments
+- `fixed_value::Real=1.0`: The value to fix the non-scanned parameter(s) at during the scan.
+- `scan::Symbol=:w`: The symbol of the parameter to scan (e.g., `:w` for width).
+- `scan_range=-2.0:0.1:2.0`: The range of values to scan over for the selected parameter.
+- `threshold::Real=0.0`: Threshold value for filtering or decision-making during the scan.
+- `verbose::Bool=true`: If `true`, prints progress and additional information during the scan.
+
+# Returns
+Returns the results of the parameter scan, as a data structure containing performance metrics or scan outcomes for each parameter combination.
 """
 function parameter_scan_1d(
     rich,
@@ -201,6 +284,7 @@ function parameter_scan_1d(
     n = length(scan_range)
     efficiency = zeros(n)
     purity = zeros(n)
+    misid = zeros(n)
     f1 = zeros(n)
     auc = zeros(n)
 
@@ -230,6 +314,7 @@ function parameter_scan_1d(
 
         efficiency[i] = tp / (n_pos > 0 ? n_pos : 1)
         purity[i] = (tp + fp) > 0 ? tp / (tp + fp) : 0.0
+        misid[i] = fp / (n_neg > 0 ? n_neg : 1)
         f1[i] =
             (efficiency[i] > 0 && purity[i] > 0) ?
             2 * (efficiency[i] * purity[i]) / (efficiency[i] + purity[i]) : 0.0
@@ -240,21 +325,59 @@ function parameter_scan_1d(
     best_idx = argmax(auc)
     best = (index = best_idx, param = scan_range[best_idx], auc = auc[best_idx])
 
+    # minimum misid index
+    min_misid_idx = argmin(misid)
+    min_misid_val = misid[min_misid_idx]
+
+    # For efficiency at fixed misid (e.g., find highest efficiency with misid <= 0.05)
+    target_misid = 0.05  # 5% misid rate as example
+    valid_indices = findall(misid .<= target_misid)
+
+    # If there are any indices with misid <= target, find max efficiency among them
+    best_eff_at_target = if !isempty(valid_indices)
+        max_eff_idx = argmax(efficiency[valid_indices])
+        param_idx = valid_indices[max_eff_idx]
+        (
+            index = param_idx,
+            param = scan_range[param_idx],
+            efficiency = efficiency[param_idx],
+            misid = misid[param_idx],
+        )
+    else
+        # If no valid points found, return nothing
+        nothing
+    end
+
     return (
-        param_name = :scan,
+        param_name = scan,
         param_range = scan_range,
         best = best,
+        min_misid = (
+            index = min_misid_idx,
+            param = scan_range[min_misid_idx],
+            misid = min_misid_val,
+        ),
+        best_eff_at_target_misid = best_eff_at_target,
         auc = auc,
         efficiency = efficiency,
         purity = purity,
+        misid = misid,
         f1 = f1,
     )
 end
 
 """
-    visualize_1d_scan(scan1d; metric=:efficiency, xlabel=nothing)
+    visualize_1d_scan(scan1d; metric::Symbol = :auc, xlabel = nothing)
 
-Plot a metric vs the scanned parameter. `scan1d` is result from `parameter_scan_1d`.
+Visualizes the results of a 1D scan.
+
+# Arguments
+- `scan1d`: The data structure containing the results of the 1D scan to visualize.
+- `metric::Symbol`: (Optional) The metric to plot from the scan results. Default is `:auc`.
+- `xlabel`: (Optional) Label for the x-axis. If not provided, a default label will be used.
+
+# Description
+This function generates a plot to visualize the specified metric from a 1D scan result. It is useful for analyzing how the chosen metric varies with the scanned parameter.
 """
 function visualize_1d_scan(scan1d; metric::Symbol = :auc, xlabel = nothing)
     param_range = scan1d.param_range
@@ -264,6 +387,9 @@ function visualize_1d_scan(scan1d; metric::Symbol = :auc, xlabel = nothing)
     elseif metric == :purity
         y = scan1d.purity
         title = "Purity"
+    elseif metric == :misid
+        y = scan1d.misid
+        title = "Misidentification Rate"
     elseif metric == :f1
         y = scan1d.f1
         title = "F1 score"
@@ -277,7 +403,7 @@ function visualize_1d_scan(scan1d; metric::Symbol = :auc, xlabel = nothing)
     v = best.param
     best_index = best.index
     bestval = y[best_index]
-    scatter!([v], [bestval], color = :red, markersize = 6, label = "best")
+    scatter!([v], [bestval], color = :red, markersize = 6, label = "best AUC")
 
     if xlabel === nothing
         xlabel = string(scan1d.param_name)
