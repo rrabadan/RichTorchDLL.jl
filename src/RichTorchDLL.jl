@@ -14,10 +14,12 @@ export combination_model,
 export train_model!, prepare_data
 export parameter_scan, visualize_scan_results, parameter_scan_1d, visualize_1d_scan
 export find_workingpoints, misid_eff_points, misid_eff_dataframe
+export trackprop_histogram, trackentry_heatmap
 
 include("combination.jl")
 include("training.jl")
 include("scan.jl")
 include("pidperformance.jl")
+include("trackplots.jl")
 
 end # module RichTorchDLL
