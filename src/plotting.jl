@@ -35,6 +35,34 @@ function histogram_plot!(
     return axis
 end
 
+function histogram_plot(
+    x;
+    bins = 100,
+    limits = (nothing, nothing),
+    title = "",
+    xlabel = "",
+    ylabel = "Entries",
+    histtype = :step,
+    color = :blue,
+    linewidth = 2,
+    figsize = (600, 400),
+)
+    f = Figure(size = figsize)
+    histogram_plot!(
+        f[1, 1],
+        x;
+        bins = bins,
+        limits = limits,
+        title = title,
+        xlabel = xlabel,
+        ylabel = ylabel,
+        histtype = histtype,
+        color = color,
+        linewidth = linewidth,
+    )
+    return f
+end
+
 """
     multi_histogram!(
         f,
@@ -178,6 +206,43 @@ function multi_histogram!(
     return ax
 end
 
+function multi_histogram(
+    data_arrays;
+    bins = 100,
+    limits = (nothing, nothing),
+    title = "",
+    xlabel = "",
+    ylabel = "Entries",
+    labels = nothing,
+    colors = nothing,
+    normalization = :pdf,
+    alpha = 0.7,
+    grid = true,
+    histtype = :step,
+    show_legend = true,
+    legend_position = :rt,
+    figsize = (600, 400),
+)
+    f = Figure(size = figsize)
+    multi_histogram!(
+        f[1, 1],
+        data_arrays;
+        bins = bins,
+        limits = limits,
+        title = title,
+        xlabel = xlabel,
+        ylabel = ylabel,
+        labels = labels,
+        colors = colors,
+        normalization = normalization,
+        alpha = alpha,
+        grid = true,
+        histtype = histtype,
+        show_legend = show_legend,
+        legend_position = legend_position,
+    )
+    return f
+end
 
 """
     histogram_with_ratio(
