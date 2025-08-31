@@ -1,23 +1,5 @@
 using CairoMakie: Figure, Axis, hist!, heatmap!, Colorbar
 
-function trackprop_histogram(x, title, xlabel; ylabel = "Entries", figsize = (800, 600))
-    f = Figure(size = figsize)
-    axis = Axis(
-        f[1, 1],
-        title = title,
-        xlabel = xlabel,
-        ylabel = ylabel,
-        xticks = 0:10:100,
-        xticklabelsize = 18,
-        yticklabelsize = 18,
-        xlabelsize = 20,
-        ylabelsize = 20,
-        titlesize = 20,
-    )
-    hist!(axis, x, bins = 100)
-    return f
-end
-
 function create_trackentry_histogram2d(
     x,
     y;
