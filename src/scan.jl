@@ -1,3 +1,5 @@
+using CairoMakie: Figure, Axis, heatmap!, Colorbar, scatter!, text!, Label
+
 """
     parameter_scan(rich, torch, labels; w_range=-2.0:0.1:2.0, b_range=-2.0:0.1:2.0, verbose=true)
 
@@ -140,70 +142,101 @@ end
 
 # Function to visualize scan results
 """
-    visualize_scan_results(scan_results; metric=:auc)
+    visualize_scan_results!(fig, scan_results; metric=:auc)
 
-Visualizes the results of a parameter scan.
+Visualizes the results of a parameter scan using CairoMakie.
 
 # Arguments
+- `fig`: The Figure object to visualize the results on.
 - `scan_results`: The results from running `parameter_scan` function.
 - `metric`: Symbol specifying which metric to visualize (default is `:auc`).
 
+# Returns
+- A Figure object that can be further customized or saved.
+
 # Description
-Generates a plot or visualization to help analyze the performance of different parameter configurations based on the specified metric.
+Generates a heatmap visualization to help analyze the performance of different parameter configurations based on the specified metric.
 """
-function visualize_scan_results(scan_results; metric = :auc)
+function visualize_scan_results!(fig, scan_results; metric = :auc)
+
     w_range = scan_results.w_range
     b_range = scan_results.b_range
 
     # Select metric
     if metric == :efficiency
         data = scan_results.efficiencies
-        title = "Efficiency (TP/P)"
+        title_text = "Efficiency (TP/P)"
         best = scan_results.best_efficiency
+        colormap = :viridis
     elseif metric == :misid
         data = scan_results.misids
-        title = "Misidentification Probability (FP/N)"
+        title_text = "Misidentification Probability (FP/N)"
         best = scan_results.best_misid
+        colormap = :plasma
     elseif metric == :purity
         data = scan_results.purities
-        title = "Purity (TP/(TP+FP))"
+        title_text = "Purity (TP/(TP+FP))"
         best = scan_results.best_f1
+        colormap = :turbo
     elseif metric == :f1
         data = scan_results.f1_scores
-        title = "F1 Score"
+        title_text = "F1 Score"
         best = scan_results.best_f1
+        colormap = :cividis
     else  # Default to AUC
         data = scan_results.aucs
-        title = "AUC"
+        title_text = "AUC"
         best = scan_results.best_auc
+        colormap = :viridis
     end
 
-    # Create heatmap
-    heatmap(
-        w_range,
-        b_range,
-        data',
-        xlabel = "w",
-        ylabel = "b",
-        title = title,
-        color = :viridis,
+    # Create axis
+    ax = Axis(
+        fig,
+        title = title_text,
+        xlabel = "Weight (w)",
+        ylabel = "Bias (b)",
+        titlesize = 20,
+        xlabelsize = 16,
+        ylabelsize = 16,
+        xticklabelsize = 14,
+        yticklabelsize = 14,
     )
+
+    # Create heatmap - transpose data to match orientation
+    hm = heatmap!(ax, w_range, b_range, data', colormap = colormap)
+
+    # Add colorbar
+    Colorbar(fig[1, 2], hm, label = title_text)
 
     # Mark the best point
-    scatter!(
-        [best.w],
-        [best.b],
-        color = :red,
-        markersize = 5,
-        label = "Best: ($(best.w), $(best.b))",
+    scatter!(ax, [best.w], [best.b], color = :red, markersize = 15)
+
+    # Add text annotation for best point
+    text!(
+        ax,
+        "Best: ($(round(best.w, digits=2)), $(round(best.b, digits=2)))",
+        position = (best.w, best.b),
+        align = (:center, :bottom),
+        offset = (0, 15),
+        fontsize = 12,
     )
 
-    # Return the plot for further customization
-    current()
+    # Add grid lines for better readability
+    ax.xgridvisible = true
+    ax.ygridvisible = true
+
+    return ax
+end
+
+function visualize_scan_results(scan_results; metric = :auc, figsize = (800, 600))
+    fig = Figure(size = figsize)
+    visualize_scan_results!(fig[1, 1], scan_results; metric = metric)
+    return fig
 end
 
 """
-    optimize_combination_model(rich, torch, labels)
+    optimize_combination_model(rich, torch, labels; figsize=(1000, 800))
 
 Optimize a combination model using the provided `rich` and `torch` data, along with the corresponding `labels`.
 
@@ -211,32 +244,88 @@ Optimize a combination model using the provided `rich` and `torch` data, along w
 - `rich`: The RICH DLLs.
 - `torch`: The TORCH DLLs.
 - `labels`: Labels or identifiers for the scan (0, 1).
+- `figsize`: Size of the figure in pixels (default is (1000, 800)).
 
 # Returns
-Returns the results of the scan over (w, b) parameter space.
+- A tuple containing (figure, scan_results) where figure is the visualization and scan_results are the numeric results.
+
+# Description
+This function performs a parameter scan to optimize the combination of RICH and TORCH DLLs,
+and generates a multi-panel visualization of different performance metrics.
 """
-function optimize_combination_model(rich, torch, labels)
+function optimize_combination_model(rich, torch, labels; figsize = (1000, 800))
+
     # Parameter scan
     scan_results =
         parameter_scan(rich, torch, labels, w_range = -2.0:0.1:2.0, b_range = -2.0:0.1:2.0)
 
-    # Visualize efficiency
-    p1 = visualize_scan_results(scan_results, metric = :efficiency)
+    # Create a 2x2 grid figure
+    fig = Figure(size = figsize)
 
-    # Visualize misidentification probability
-    p2 = visualize_scan_results(scan_results, metric = :misid)
+    # Define the metrics to visualize
+    metrics = [:efficiency, :misid, :f1, :auc]
+    titles = ["Efficiency", "Misidentification Rate", "F1 Score", "AUC"]
 
-    # Visualize F1 score (balance of efficiency and purity)
-    p3 = visualize_scan_results(scan_results, metric = :f1)
+    # Generate the four panels
+    for (i, metric) in enumerate(metrics)
+        row = div(i - 1, 2) + 1
+        col = mod(i - 1, 2) + 1
 
-    # Visualize AUC
-    p4 = visualize_scan_results(scan_results, metric = :auc)
+        # Select metric data
+        if metric == :efficiency
+            data = scan_results.efficiencies
+            best = scan_results.best_efficiency
+            colormap = :viridis
+        elseif metric == :misid
+            data = scan_results.misids
+            best = scan_results.best_misid
+            colormap = :plasma
+        elseif metric == :f1
+            data = scan_results.f1_scores
+            best = scan_results.best_f1
+            colormap = :turbo
+        else  # Default to AUC
+            data = scan_results.aucs
+            best = scan_results.best_auc
+            colormap = :viridis
+        end
 
-    # Combine plots
-    plot(p1, p2, p3, p4, layout = (2, 2), size = (1000, 800))
+        # Create axis
+        ax = Axis(
+            fig[row, col],
+            title = titles[i],
+            xlabel = "Weight (w)",
+            ylabel = "Bias (b)",
+            titlesize = 16,
+            xlabelsize = 14,
+            ylabelsize = 14,
+        )
 
-    # Return optimal parameters
-    return scan_results
+        # Create heatmap
+        hm = heatmap!(
+            ax,
+            scan_results.w_range,
+            scan_results.b_range,
+            data',
+            colormap = colormap,
+        )
+
+        # Add colorbar
+        Colorbar(fig[row, col+2], hm, label = titles[i])
+
+        # Mark the best point
+        scatter!(ax, [best.w], [best.b], color = :red, markersize = 10)
+
+        # Add grid lines
+        ax.xgridvisible = true
+        ax.ygridvisible = true
+    end
+
+    # Add a common title
+    Label(fig[0, 1:2], "Parameter Scan Results", fontsize = 20)
+
+    # Return both the figure and the scan results
+    return (figure = fig, results = scan_results)
 end
 
 # -- One-dimensional scan (fix one parameter, scan the other) -------------------
@@ -273,9 +362,11 @@ function parameter_scan_1d(
     rich,
     torch,
     labels;
-    fixed_value::Real = 1.0,
     scan::Symbol = :w,
     scan_range = -2.0:0.1:2.0,
+    fixed_value::Real = 1.0,
+    max_pairs_auc::Int = 10000,
+    repeats_auc::Int = 1,
     threshold::Real = 0.0,
     verbose::Bool = true,
 )
@@ -287,6 +378,7 @@ function parameter_scan_1d(
     misid = zeros(n)
     f1 = zeros(n)
     auc = zeros(n)
+    auc_std = zeros(n)
 
     pos_indices = findall(labels .== 1)
     neg_indices = findall(labels .== 0)
@@ -318,12 +410,28 @@ function parameter_scan_1d(
         f1[i] =
             (efficiency[i] > 0 && purity[i] > 0) ?
             2 * (efficiency[i] * purity[i]) / (efficiency[i] + purity[i]) : 0.0
-        auc[i] = calculate_auc_stratified_sampled(scores, labels, max_pairs = 10000)
+        auc_results = calculate_auc_stratified_sampled(
+            scores,
+            labels,
+            max_pairs = max_pairs_auc,
+            repeats = repeats_auc,
+        )
+        if repeats_auc > 1
+            auc[i], auc_std[i] = auc_results
+        else
+            auc[i] = auc_results
+            auc_std[i] = 0.0
+        end
     end
 
     # best by AUC
     best_idx = argmax(auc)
-    best = (index = best_idx, param = scan_range[best_idx], auc = auc[best_idx])
+    best = (
+        index = best_idx,
+        param = scan_range[best_idx],
+        auc = auc[best_idx],
+        auc_std = auc_std[best_idx],
+    )
 
     # minimum misid index
     min_misid_idx = argmin(misid)
@@ -367,50 +475,113 @@ function parameter_scan_1d(
 end
 
 """
-    visualize_1d_scan(scan1d; metric::Symbol = :auc, xlabel = nothing)
+    visualize_1d_scan!(fig, scan1d; metric::Symbol = :auc, xlabel = nothing)
 
-Visualizes the results of a 1D scan.
+Visualizes the results of a 1D scan using CairoMakie.
 
 # Arguments
+- `fig`: The figure object to which the plot will be added.
 - `scan1d`: The data structure containing the results of the 1D scan to visualize.
 - `metric::Symbol`: (Optional) The metric to plot from the scan results. Default is `:auc`.
 - `xlabel`: (Optional) Label for the x-axis. If not provided, a default label will be used.
+- `legend_position`: (Optional) Position of the legend on the plot. Default is `:rt` (right top).
+
+# Returns
+- An Axis object containing the plot.
 
 # Description
 This function generates a plot to visualize the specified metric from a 1D scan result. It is useful for analyzing how the chosen metric varies with the scanned parameter.
 """
-function visualize_1d_scan(scan1d; metric::Symbol = :auc, xlabel = nothing)
+function visualize_1d_scan!(
+    fig,
+    scan1d;
+    metric::Symbol = :auc,
+    xlabel = nothing,
+    limits = (nothing, nothing),
+    legend_position = :rt,
+)
+
     param_range = scan1d.param_range
     if metric == :efficiency
         y = scan1d.efficiency
-        title = "Efficiency"
+        title_text = "Efficiency"
     elseif metric == :purity
         y = scan1d.purity
-        title = "Purity"
+        title_text = "Purity"
     elseif metric == :misid
         y = scan1d.misid
-        title = "Misidentification Rate"
+        title_text = "Misidentification Rate"
     elseif metric == :f1
         y = scan1d.f1
-        title = "F1 score"
+        title_text = "F1 score"
     else
         y = scan1d.auc
-        title = "AUC"
+        title_text = "AUC"
     end
 
-    p = plot(param_range, y, lw = 2, marker = :circle, label = string(title))
+    # Get best point for highlighting
     best = scan1d.best
     v = best.param
     best_index = best.index
     bestval = y[best_index]
-    scatter!([v], [bestval], color = :red, markersize = 6, label = "best AUC")
 
-    if xlabel === nothing
-        xlabel = string(scan1d.param_name)
-    end
-    xlabel!(xlabel)
-    ylabel!(title)
-    title!("$(title) vs $(scan1d.param_name)")
+    # Create axis
+    ax = Axis(
+        fig,
+        limits = limits,
+        title = "$(title_text) vs $(scan1d.param_name)",
+        xlabel = xlabel === nothing ? string(scan1d.param_name) : xlabel,
+        ylabel = title_text,
+        titlesize = 20,
+        xlabelsize = 16,
+        ylabelsize = 16,
+        xticklabelsize = 14,
+        yticklabelsize = 14,
+    )
 
-    return p
+    # Plot the main line
+    lines!(ax, param_range, y, linewidth = 2, color = :royalblue)
+    scatter!(ax, param_range, y, markersize = 5, color = :royalblue, label = title_text)
+
+    # Highlight the best point
+    scatter!(ax, [v], [bestval], color = :red, markersize = 10, label = "Best AUC")
+
+    # Add a text annotation for the best point
+    #text!(
+    #    ax,
+    #    "Best: ($(round(v, digits=2)), $(round(bestval, digits=3)))",
+    #    position=(v, bestval),
+    #    align=(:center, :bottom),
+    #    offset=(0, 10),
+    #    fontsize=12,
+    #)
+
+    # Add grid lines for better readability
+    ax.xgridvisible = true
+    ax.ygridvisible = true
+
+    # Add legend
+    axislegend(ax, position = legend_position)
+
+    return ax
+end
+
+function visualize_1d_scan(
+    scan1d;
+    metric::Symbol = :auc,
+    xlabel = nothing,
+    limits = (nothing, nothing),
+    legend_position = :rt,
+    figsize = (800, 600),
+)
+    fig = Figure(size = figsize)
+    visualize_1d_scan!(
+        fig,
+        scan1d;
+        metric = metric,
+        xlabel = xlabel,
+        limits = limits,
+        legend_position = legend_position,
+    )
+    return fig
 end
