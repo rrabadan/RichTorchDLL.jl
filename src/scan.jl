@@ -1,4 +1,5 @@
 using CairoMakie: Figure, Axis, heatmap!, Colorbar, scatter!, text!, Label
+using Statistics: mean, std
 
 """
     parameter_scan(rich, torch, labels; w_range=-2.0:0.1:2.0, b_range=-2.0:0.1:2.0, verbose=true)
@@ -387,6 +388,7 @@ function parameter_scan_1d(
 
     if verbose
         println("1D scan over $(n) values of $(scan) (fixed other = $(fixed_value)))")
+        println("AUC repeats: $repeats_auc")
     end
 
     for (i, param) in enumerate(scan_range)
@@ -584,4 +586,126 @@ function visualize_1d_scan(
         legend_position = legend_position,
     )
     return fig
+end
+
+"""
+    repeated_parameter_scan(rich, torch, labels, scan_var, scan_range, fixed_value, output_dir, n_repeats; kwargs...)
+
+Repeat the parameter scan n times and compute statistics on the optimal weights.
+
+# Arguments
+- `rich`: Vector of RICH DLL values
+- `torch`: Vector of TORCH DLL values
+- `labels`: Vector of binary labels (1 for signal, 0 for background)
+- `scan_var`: The variable to scan (e.g., :w for weight, :b for bias)
+- `scan_range`: The range of values to scan over
+- `fixed_value`: The fixed value for the other parameter (e.g., bias when scanning weight)
+- `n_repeats`: Number of scan repetitions
+- `kwargs`: Additional keyword arguments passed to parameter_scan_1d
+
+# Returns
+A named tuple containing:
+- `mean`: Mean of optimal weight values across all scans
+- `std`: Standard deviation of optimal weight values
+- `bestvalues`: Vector of all optimal weight values
+"""
+function repeated_parameter_scan(
+    rich::Vector{<:Real},
+    torch::Vector{<:Real},
+    labels::Vector{Int},
+    scan_var::Symbol,
+    scan_range::StepRangeLen{Float64,Base.TwicePrecision{Float64}},
+    fixed_value::Float64,
+    n_repeats::Int,
+    savefig_func::Function;
+    kwargs...,
+)
+
+    figsize = get(kwargs, :figsize, (1000, 400))
+
+    scan_dir = "scans_$(scan_var)"
+    best_values = Float64[]
+
+    for i = 1:n_repeats
+        println("Running parameter scan $i of $n_repeats...")
+
+        # Run the scan
+        scan_result = parameter_scan_1d(
+            rich,
+            torch,
+            labels;
+            scan = scan_var,
+            scan_range = scan_range,
+            fixed_value = fixed_value,
+            verbose = false,
+            kwargs...,
+        )
+
+        # Save the best weight
+        push!(best_values, scan_result.best.param)
+
+        # Create visualization of this scan
+        fig = Figure(size = figsize)
+        ax_auc = visualize_1d_scan!(
+            fig[1, 1],
+            scan_result,
+            limits = (nothing, (0.0, 1.1)),
+            legend_position = :lt,
+        )
+        ax_misid = visualize_1d_scan!(
+            fig[1, 2],
+            scan_result,
+            metric = :misid,
+            limits = (nothing, (0.0, 1.0)),
+            legend_position = :rt,
+        )
+        ax_eff = visualize_1d_scan!(
+            fig[1, 3],
+            scan_result,
+            metric = :efficiency,
+            limits = (nothing, (0.0, 1.0)),
+            legend_position = :rb,
+        )
+
+        # Save the figure for this scan
+        savefig_func(fig, "$(scan_dir)/scan_$(i)")
+    end
+
+    # Calculate statistics
+    mean_ = mean(best_values)
+    std_ = std(best_values)
+
+    # Create a histogram of the best parameters
+    fig1 = Figure(size = (800, 600))
+    ax = Axis(
+        fig1[1, 1],
+        title = "Distribution of Optimal Parameters (n=$n_repeats)",
+        xlabel = (scan_var == :w ? "Weight (w)" : "Bias (b)"),
+        ylabel = "",
+    )
+
+    hist!(ax, best_values, bins = min(20, n_repeats))
+
+    # Add vertical line for mean
+    vlines!(
+        ax,
+        [mean_],
+        color = :red,
+        linewidth = 2,
+        label = "Mean = $(round(mean_, digits=3)) ± $(round(std_, digits=3))",
+    )
+
+    axislegend(position = :lb)
+
+    # Save the histogram
+    savefig_func(fig1, "$(scan_dir)/$(scan_var)_distribution")
+
+    println("\nRepeated Parameter Scan Results:")
+    println("Mean weight: $(round(mean_, digits=4))")
+    println("Std dev: $(round(std_, digits=4))")
+    println(
+        "Range: [$(round(minimum(best_values), digits=4)), $(round(maximum(best_values), digits=4))]",
+    )
+
+    return (mean = mean_, std = std_, bestvalues = best_values)
 end
