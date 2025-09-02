@@ -25,6 +25,11 @@ export find_workingpoints, misid_eff_points, misid_eff_dataframe
 export histogram_plot!,
     histogram_plot, multi_histogram!, multi_histogram, histogram_grid, histogram_with_ratio
 export trackentry_heatmap
+export compare_performance_curve,
+    efficiency_per_momentum_bin,
+    plot_efficiency_vs_momentum,
+    efficiency_vs_momentum_for_misid_rate,
+    compare_efficiency_vs_momentum
 
 include("combination.jl")
 include("training.jl")
