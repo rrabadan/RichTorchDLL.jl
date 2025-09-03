@@ -77,7 +77,7 @@ function parameter_scan(
                 2 * (efficiency * purity) / (efficiency + purity) : 0.0
 
             # Also calculate AUC (stratified sampling)
-            auc = calculate_auc_stratified_sampled(scores, labels, max_pairs = 10000)
+            auc = calculate_auc(scores, labels)
 
             # Store results
             efficiencies[i, j] = efficiency
@@ -335,9 +335,9 @@ end
         rich,
         torch,
         labels;
-        fixed_value::Real=1.0,
         scan::Symbol=:w,
         scan_range=-2.0:0.1:2.0,
+        fixed_value::Real=1.0,
         threshold::Real=0.0,
         verbose::Bool=true,
     )
@@ -350,9 +350,9 @@ Performs a one-dimensional parameter scan over a specified parameter of the syst
 - `labels`: Labels or identifiers for the scan (0, 1)
 
 # Keyword Arguments
-- `fixed_value::Real=1.0`: The value to fix the non-scanned parameter(s) at during the scan.
 - `scan::Symbol=:w`: The symbol of the parameter to scan (e.g., `:w` for width).
 - `scan_range=-2.0:0.1:2.0`: The range of values to scan over for the selected parameter.
+- `fixed_value::Real=1.0`: The value to fix the non-scanned parameter(s) at during the scan.
 - `threshold::Real=0.0`: Threshold value for filtering or decision-making during the scan.
 - `verbose::Bool=true`: If `true`, prints progress and additional information during the scan.
 
@@ -366,8 +366,6 @@ function parameter_scan_1d(
     scan::Symbol = :w,
     scan_range = -2.0:0.1:2.0,
     fixed_value::Real = 1.0,
-    max_pairs_auc::Int = 10000,
-    repeats_auc::Int = 1,
     threshold::Real = 0.0,
     verbose::Bool = true,
 )
@@ -379,7 +377,6 @@ function parameter_scan_1d(
     misid = zeros(n)
     f1 = zeros(n)
     auc = zeros(n)
-    auc_std = zeros(n)
 
     pos_indices = findall(labels .== 1)
     neg_indices = findall(labels .== 0)
@@ -388,7 +385,6 @@ function parameter_scan_1d(
 
     if verbose
         println("1D scan over $(n) values of $(scan) (fixed other = $(fixed_value)))")
-        println("AUC repeats: $repeats_auc")
     end
 
     for (i, param) in enumerate(scan_range)
@@ -412,28 +408,12 @@ function parameter_scan_1d(
         f1[i] =
             (efficiency[i] > 0 && purity[i] > 0) ?
             2 * (efficiency[i] * purity[i]) / (efficiency[i] + purity[i]) : 0.0
-        auc_results = calculate_auc_stratified_sampled(
-            scores,
-            labels,
-            max_pairs = max_pairs_auc,
-            repeats = repeats_auc,
-        )
-        if repeats_auc > 1
-            auc[i], auc_std[i] = auc_results
-        else
-            auc[i] = auc_results
-            auc_std[i] = 0.0
-        end
+        auc[i] = calculate_auc(scores, labels)
     end
 
     # best by AUC
     best_idx = argmax(auc)
-    best = (
-        index = best_idx,
-        param = scan_range[best_idx],
-        auc = auc[best_idx],
-        auc_std = auc_std[best_idx],
-    )
+    best = (index = best_idx, param = scan_range[best_idx], auc = auc[best_idx])
 
     # minimum misid index
     min_misid_idx = argmin(misid)
@@ -586,6 +566,57 @@ function visualize_1d_scan(
         legend_position = legend_position,
     )
     return fig
+end
+
+function run_parameter_scan_1d(
+    rich::Vector{<:Real},
+    torch::Vector{<:Real},
+    labels::Vector{Int},
+    scan_var::Symbol,
+    scan_range::StepRangeLen{Float64,Base.TwicePrecision{Float64}},
+    fixed_value::Float64;
+    kwargs...,
+)
+    figsize = get(kwargs, :figsize, (1000, 400))
+
+    # Perform the 1D parameter scan
+    scan_result = parameter_scan_1d(
+        rich,
+        torch,
+        labels;
+        scan = scan_var,
+        scan_range = scan_range,
+        fixed_value = fixed_value,
+    )
+
+    # Create visualization of the scan results
+    fig = Figure(size = figsize)
+    ax_auc = visualize_1d_scan!(
+        fig[1, 1],
+        scan_result;
+        metric = :auc,
+        limits = (nothing, (0.0, 1.1)),
+        legend_position = :lt,
+    )
+    ax_misid = visualize_1d_scan!(
+        fig[1, 2],
+        scan_result;
+        metric = :misid,
+        limits = (nothing, (0.0, 1.0)),
+        legend_position = :rt,
+    )
+    ax_eff = visualize_1d_scan!(
+        fig[1, 3],
+        scan_result;
+        metric = :efficiency,
+        limits = (nothing, (0.0, 1.0)),
+        legend_position = :rb,
+    )
+
+    # Save the figure using the provided function
+    # savefig_func(fig, "scan_1d_$(scan)")
+
+    return (figure = fig, results = scan_result)
 end
 
 """

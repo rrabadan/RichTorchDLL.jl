@@ -14,6 +14,7 @@ export parameter_scan,
     parameter_scan_1d,
     visualize_1d_scan,
     visualize_1d_scan!,
+    run_parameter_scan_1d,
     repeated_parameter_scan
 export find_workingpoints, misid_eff_points, misid_eff_dataframe
 export histogram_plot!,
