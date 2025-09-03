@@ -197,30 +197,34 @@ target_misid = 0.05
 df_rich_dllk = df_rich.RichDLLk
 df_rich_momentum = df_rich.TrackP ./ 1000
 
-result_rich = efficiency_vs_momentum_for_misid_rate(
+#result_rich = efficiency_vs_momentum_for_misid_rate(
+result_rich = efficiency_vs_momentum_with_per_bin_misid(
     df_rich_dllk,
     df_rich_labels,
     df_rich_momentum,
     target_misid,
     momentum_bins;
-    title = "RICH Efficiency vs Momentum",
+    title = "RICH Efficiency",
     xlabel = "Momentum [GeV/c]",
     color = :royalblue,
+    legend_position = :rc,
 )
 
 # Create efficiency plots for RICH DLLk
 df_torch_dllk = df_torch.TorchDLLk
 df_torch_momentum = df_torch.TrackP ./ 1000
 
-result_torch = efficiency_vs_momentum_for_misid_rate(
+#result_torch = efficiency_vs_momentum_for_misid_rate(
+result_torch = efficiency_vs_momentum_with_per_bin_misid(
     df_torch_dllk,
     df_torch_labels,
     df_torch_momentum,
     target_misid,
     momentum_bins;
-    title = "TORCH Efficiency vs Momentum",
+    title = "TORCH Efficiency",
     xlabel = "Momentum [GeV/c]",
     color = :crimson,
+    legend_position = :rc,
 )
 
 # Create combined scores
@@ -229,33 +233,40 @@ combined_dllk = rich_dllk .+ (best_w .* torch_dllk .+ best_b)
 # Convert momentum to GeV/c for plotting
 momentum_gev = momentum ./ 1000
 
-result_combined = efficiency_vs_momentum_for_misid_rate(
+result_combined = efficiency_vs_momentum_with_per_bin_misid(
     combined_dllk,
     labels,
     momentum_gev,
     target_misid,
     momentum_bins;
-    title = "RICH+TORCH Efficiency vs Momentum",
+    title = "RICH+TORCH Efficiency",
     xlabel = "Momentum [GeV/c]",
     color = :black,
+    legend_position = :rc,
 )
 
-# Compare all DLLk's
+
+# Compare combined against RICH DLLk's
+rich_bin_data = result_rich.bin_data
+comb_bin_data = result_combined.bin_data
+
+bin_centers_list = [rich_bin_data.bin_centers, comb_bin_data.bin_centers]
+bin_eff_list = [rich_bin_data.efficiency, comb_bin_data.efficiency]
+bin_efferr_list = [rich_bin_data.efficiency_error, comb_bin_data.efficiency_error]
+
 all_scores = [df_rich_dllk, combined_dllk]
 all_labels = [df_rich_labels, labels]
-all_momentum = [df_rich_momentum, momentum_gev]
-
+# all_momentum = [df_rich_momentum, momentum_gev]
 # Get thresholds for each DLLk at 5% misid rate
-thresholds = [result_rich.workingpoint.threshold, result_combined.workingpoint.threshold]
+# thresholds = [result_rich.workingpoint.threshold, result_combined.workingpoint.threshold]
 
-comparison = compare_efficiency_vs_momentum(
-    all_scores,
-    all_labels,
-    all_momentum,
-    thresholds,
+comparison = compare_bin_efficiency_data(
+    bin_centers_list,
+    bin_eff_list,
+    bin_efferr_list,
     momentum_bins;
     labels = ["RICH", "RICH+TORCH"],
-    title = "Kaon Efficiency Comparison (5% Pion Misid)",
+    title = "Kaon Efficiency (5% Pion Misid)",
     xlabel = "Momentum [GeV/c]",
     colors = [:royalblue, :black],
     legend_position = :rb,
@@ -297,7 +308,7 @@ println("Plots saved to $(args["output-dir"])/$(fig_subdir)/ directory")
 
 
 # Print performance summary
-println("\nPerformance Summary (5% Misid Rate):")
-println("RICH threshold: $(round(result_rich.workingpoint.threshold, digits=2))")
-println("TORCH threshold: $(round(result_torch.workingpoint.threshold, digits=2))")
-println("Combined threshold: $(round(result_combined.workingpoint.threshold, digits=2))")
+#println("\nPerformance Summary (5% Misid Rate):")
+#println("RICH threshold: $(round(result_rich.workingpoint.threshold, digits=2))")
+#println("TORCH threshold: $(round(result_torch.workingpoint.threshold, digits=2))")
+#println("Combined threshold: $(round(result_combined.workingpoint.threshold, digits=2))")
