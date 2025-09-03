@@ -388,3 +388,90 @@ function efficiency_per_momentum_bin_at_misid_rate(
         n_neg = n_neg_bins,
     )
 end
+
+"""
+    fraction_nonzero_per_momentum_bin(
+        scores::AbstractVector{<:Real},
+        momentum::AbstractVector{<:Real},
+        bin_edges::AbstractVector{<:Real}
+    )
+
+Calculate the fraction of non-zero scores per momentum bin and their uncertainties.
+
+# Arguments
+- `scores`: Vector of classifier scores
+- `momentum`: Vector of momentum values
+- `bin_edges`: Vector of bin edges for momentum bins
+
+# Returns
+A named tuple containing:
+- `bin_centers`: Centers of momentum bins
+- `fraction`: Fraction of non-zero scores in each bin
+- `fraction_error`: Binomial error on the fraction
+- `n_nonzero`: Number of non-zero scores in each bin
+- `n_total`: Total number of samples in each bin
+"""
+function fraction_nonzero_per_momentum_bin(
+    scores::AbstractVector{<:Real},
+    momentum::AbstractVector{<:Real},
+    bin_edges::AbstractVector{<:Real},
+)
+    @assert length(scores) == length(momentum) "Scores and momentum vectors must have the same length"
+
+    n_bins = length(bin_edges) - 1
+    bin_centers = [(bin_edges[i] + bin_edges[i+1]) / 2 for i = 1:n_bins]
+
+    # Initialize arrays to store results
+    fractions = zeros(n_bins)
+    fraction_errors = zeros(n_bins)
+    n_nonzero_bins = zeros(Int, n_bins)
+    n_total_bins = zeros(Int, n_bins)
+
+    # Find bin for each sample
+    bin_indices = zeros(Int, length(momentum))
+    for i = 1:length(momentum)
+        # Find bin index (clamp to valid range)
+        bin_idx = searchsortedfirst(bin_edges, momentum[i]) - 1
+        bin_idx = clamp(bin_idx, 1, n_bins)
+        bin_indices[i] = bin_idx
+    end
+
+    # Calculate fraction of non-zero scores in each bin
+    for bin = 1:n_bins
+        # Get samples in this bin
+        bin_mask = bin_indices .== bin
+        bin_scores = scores[bin_mask]
+
+        # Count non-zero scores and total samples
+        n_total = length(bin_scores)
+        n_nonzero = count(!iszero, bin_scores)
+
+        # Store counts
+        n_nonzero_bins[bin] = n_nonzero
+        n_total_bins[bin] = n_total
+
+        # Calculate fraction and its error
+        if n_total > 0
+            fraction = n_nonzero / n_total
+
+            # Binomial error for fraction
+            # σ = √(p(1-p)/n) where p is the fraction and n is the total number of samples
+            error = sqrt((fraction * (1 - fraction)) / n_total)
+
+            fractions[bin] = fraction
+            fraction_errors[bin] = error
+        else
+            # No samples in this bin
+            fractions[bin] = NaN
+            fraction_errors[bin] = NaN
+        end
+    end
+
+    return (
+        bin_centers = bin_centers,
+        fraction = fractions,
+        fraction_error = fraction_errors,
+        n_nonzero = n_nonzero_bins,
+        n_total = n_total_bins,
+    )
+end

@@ -23,7 +23,8 @@ export find_workingpoints,
     misid_eff_points,
     misid_eff_dataframe,
     efficiency_per_momentum_bin,
-    efficiency_per_momentum_bin_at_misid_rate
+    efficiency_per_momentum_bin_at_misid_rate,
+    fraction_nonzero_per_momentum_bin
 export plot_efficiency_vs_momentum,
     efficiency_vs_momentum_for_misid_rate,
     efficiency_vs_momentum_with_per_bin_misid,
