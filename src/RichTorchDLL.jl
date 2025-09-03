@@ -1,18 +1,12 @@
 module RichTorchDLL
 
+using CairoMakie
 using Flux
 using ProgressMeter
 using Statistics
 using StatsBase
 
-export combination_model,
-    constrained_combination_model,
-    pairwise_ranking_loss,
-    pairwise_ranking_loss_sampled,
-    loss,
-    calculate_auc,
-    calculate_auc_sampled,
-    calculate_auc_stratified_sampled
+export combination_model, constrained_combination_model, calculate_auc
 export train_model!, prepare_data
 export parameter_scan,
     visualize_scan_results,
