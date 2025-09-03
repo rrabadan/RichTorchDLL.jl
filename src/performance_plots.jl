@@ -869,6 +869,119 @@ function compare_per_bin_misid_efficiencies(
 end
 
 """
+    plot_nonzero_fraction_histogram(
+        scores::AbstractVector{<:Real},
+        momentum::AbstractVector{<:Real},
+        bin_edges::AbstractVector{<:Real};
+        title = "Fraction of Non-Zero Scores",
+        xlabel = "Momentum",
+        ylabel = "Fraction",
+        color = :darkblue,
+        min_samples = 10,
+        show_bin_edges = true,
+        tick_format = x -> string(Int(round(x))),
+        figsize = (500, 300)
+    )
+
+Creates a bar histogram showing the fraction of non-zero scores per momentum bin.
+
+# Arguments
+- `scores`: Vector of classifier scores
+- `momentum`: Vector of momentum values
+- `bin_edges`: Vector of bin edges for momentum bins
+- `title`: Plot title
+- `xlabel`: X-axis label
+- `ylabel`: Y-axis label
+- `color`: Color for the bars
+- `min_samples`: Minimum number of samples required in a bin for plotting
+- `show_bin_edges`: Whether to show bin edges as x-axis ticks
+- `tick_format`: Function to format tick labels
+- `figsize`: Size of the figure
+
+# Returns
+A tuple containing:
+- `figure`: The Figure object (if fig_or_ax was a Figure) or the parent figure (if fig_or_ax was an Axis)
+- `ax`: The axis for the histogram
+- `fraction_data`: The calculated fraction data
+"""
+function plot_nonzero_fraction_histogram(
+    scores::AbstractVector{<:Real},
+    momentum::AbstractVector{<:Real},
+    bin_edges::AbstractVector{<:Real};
+    title = "Fraction of Non-Zero Scores",
+    xlabel = "Momentum [GeV/c]",
+    ylabel = "Fraction",
+    color = :darkblue,
+    min_samples = 10,
+    show_bin_edges = true,
+    tick_format = x -> string(Int(round(x))),
+    figsize = (500, 300),
+)
+    # Calculate fraction of non-zero scores per bin
+    fraction_data = fraction_nonzero_per_momentum_bin(scores, momentum, bin_edges)
+
+    fig = Figure(size = figsize)
+    ax = Axis(
+        fig[1, 1],
+        title = title,
+        xlabel = xlabel,
+        ylabel = ylabel,
+        titlesize = 20,
+        xlabelsize = 16,
+        ylabelsize = 16,
+        xticklabelsize = 14,
+        yticklabelsize = 14,
+    )
+
+    # Filter out bins with too few samples
+    valid_bins = fraction_data.n_total .>= min_samples
+    x_centers = fraction_data.bin_centers[valid_bins]
+    fractions = fraction_data.fraction[valid_bins]
+    errors = fraction_data.fraction_error[valid_bins]
+
+    # Calculate bar widths based on bin edges
+    bin_widths = diff(bin_edges)
+    bar_widths = [
+        if i <= length(bin_widths)
+            bin_widths[i] * 0.8  # 80% of bin width for aesthetics
+        else
+            mean(bin_widths) * 0.8  # Fallback for any edge cases
+        end for i = 1:length(x_centers)
+    ]
+
+    # Create the bar plot with error bars
+    barplot!(
+        ax,
+        x_centers,
+        fractions,
+        width = bar_widths,
+        color = color,
+        strokecolor = :black,
+        strokewidth = 1,
+    )
+
+    # Add error bars
+    errorbars!(ax, x_centers, fractions, errors, whiskerwidth = 10, color = :black)
+
+    # Add grid lines
+    ax.xgridvisible = true
+    ax.ygridvisible = true
+
+    # Set y-axis limits from 0 to 1 for fraction
+    ax.limits = (nothing, nothing, 0, 1.05)
+
+    # Set y-axis ticks to 0, 0.2, 0.4, 0.6, 0.8, 1.0
+    ax.yticks = 0:0.2:1.0
+
+    # Set x-axis ticks based on bin edges if requested
+    if show_bin_edges
+        ax.xticks = (bin_edges, map(tick_format, bin_edges))
+    end
+
+    return (figure = fig, ax = ax, fraction_data = fraction_data)
+end
+
+"""
     compare_performance_curve(...)
 
 Compares the performance curves of different models or methods.

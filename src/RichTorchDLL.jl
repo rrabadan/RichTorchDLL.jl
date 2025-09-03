@@ -32,6 +32,7 @@ export plot_efficiency_vs_momentum,
     compare_efficiency_vs_momentum,
     compare_bin_efficiency_data,
     compare_per_bin_misid_efficiencies,
+    plot_nonzero_fraction_histogram,
     compare_performance_curve
 
 include("combination.jl")
