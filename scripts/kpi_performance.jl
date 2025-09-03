@@ -111,18 +111,22 @@ is_pion(id) = abs(id) == 211
 
 # Filter for kaons and pions
 df_kpi = filter(row -> is_kaon(row.MCParticleType) || is_pion(row.MCParticleType), df)
+println("$(nrow(df_kpi)) entries after filtering for kaons and pions")
 
 # Filter for momentum and DLLk
 filter!(:TrackP => p -> 2000 < p < 15000, df_kpi);
-println(nrow(df_kpi))
+println(
+    "$(nrow(df_kpi)) entries after filtering for tracks with momentum 2 GeV < p < 15 GeV",
+)
+
 filter!([:RichDLLk, :TorchDLLk] => (r, t) -> -100 < r < 100 && -100 < t < 100, df_kpi);
-println(nrow(df_kpi))
+println("$(nrow(df_kpi)) entries after filtering for DLLk in [-100, 100]")
 
 df_torch = filter([:TorchDLLk] => t -> t != 0.0, df_kpi);
-println(nrow(df_torch))
+println("$(nrow(df_torch)) entries after filtering for valid TORCH DLLk")
 
 df_rich = filter([:RichDLLk] => r -> r != 0.0, df_kpi);
-println(nrow(df_rich))
+println("$(nrow(df_rich)) entries after filtering for valid RICH DLLk")
 
 # Create binary labels (1 for kaons, 0 for pions)
 labels = Int.(is_kaon.(df_kpi.MCParticleType))
@@ -161,23 +165,23 @@ momentum = df_kpi.TrackP
 
 # Find optimal weight for combining RICH and TORCH
 println("Optimizing combination model...")
-scan_results = repeated_parameter_scan(
+scan_results = run_parameter_scan_1d(
     rich_dllk,
     torch_dllk,
     labels,
     :w,                 # scan_var
     -20.0:0.5:20.0,     # scan_range
     0.0,                # bias fixed_value
-    20,                 # iterations
-    savefig_func;       # function to save figures
-    repeats_auc = 10,
 )
 println("Scan complete.")
-println("Mean weight from repeated scans: ", scan_results.mean, " ± ", scan_results.std)
-#println("Best weight found: w = $best_w")
+#println("Mean weight from repeated scans: ", scan_results.mean, " ± ", scan_results.std)
+println("Best weight found: w = $(scan_results.results.best)")
+
+# Save figure
+save_figure(scan_results.figure, "$(fig_subdir)/scan_w", figdir = args["output-dir"])
 
 # Get best weight from scan
-best_w = scan_results.mean
+best_w = scan_results.results.best.param
 best_b = 0.0  # Using fixed bias of 0
 
 # Plot efficiency vs momentum for RICH, TORCH, and combined classifier
@@ -254,6 +258,7 @@ comparison = compare_efficiency_vs_momentum(
     title = "Kaon Efficiency Comparison (5% Pion Misid)",
     xlabel = "Momentum [GeV/c]",
     colors = [:royalblue, :black],
+    legend_position = :rb,
 )
 
 println("Plotting performance curve...")

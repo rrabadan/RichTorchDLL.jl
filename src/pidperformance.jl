@@ -598,7 +598,7 @@ function compare_efficiency_vs_momentum(
     figsize = (600, 400),
     colors = nothing,
     min_samples = 10,
-    legend_position = :rb,
+    legend_position = :lb,
     show_bin_edges = true,
     tick_format = x -> string(Int(round(x))),
 )
@@ -690,7 +690,13 @@ function compare_efficiency_vs_momentum(
     end
 
     # Add legend directly to the figure rather than to a specific subplot position
-    axislegend(ax, position = :cc, fontsize = 20, framecolor = :black, framealpha = 0.1)
+    axislegend(
+        ax,
+        position = legend_position,
+        fontsize = 20,
+        framecolor = :black,
+        framealpha = 0.1,
+    )
 
     return (figure = fig, efficiency_data = eff_data_list)
 end
