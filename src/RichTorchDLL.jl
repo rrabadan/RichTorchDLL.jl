@@ -24,7 +24,12 @@ export compare_performance_curve,
     efficiency_per_momentum_bin,
     plot_efficiency_vs_momentum,
     efficiency_vs_momentum_for_misid_rate,
-    compare_efficiency_vs_momentum
+    compare_efficiency_vs_momentum,
+    efficiency_per_momentum_bin_at_misid_rate,
+    plot_bin_efficiency_data,
+    efficiency_vs_momentum_with_per_bin_misid,
+    compare_bin_efficiency_data,
+    compare_per_bin_misid_efficiencies
 
 include("combination.jl")
 include("training.jl")
