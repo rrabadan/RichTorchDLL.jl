@@ -7,7 +7,6 @@ using Statistics
 using StatsBase
 
 export combination_model, constrained_combination_model, calculate_auc
-export train_model!, prepare_data
 export parameter_scan,
     visualize_scan_results,
     visualize_scan_results!,
@@ -36,7 +35,6 @@ export plot_efficiency_vs_momentum,
     compare_performance_curve
 
 include("combination.jl")
-include("training.jl")
 include("scan.jl")
 include("plotting.jl")
 include("trackentry.jl")
