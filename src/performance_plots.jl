@@ -338,6 +338,7 @@ function compare_bin_efficiency_data(
     ylabel = "Efficiency",
     figsize = (600, 400),
     colors = nothing,
+    linestyles = nothing,
     show_bin_edges = true,
     tick_format = x -> string(Int(round(x))),
     legend_position = :rb,
@@ -357,6 +358,11 @@ function compare_bin_efficiency_data(
         colors = [colormap[i] for i = 1:n_datasets]
     end
 
+    # Default linestyles if not provided (also solid lines)
+    if isnothing(linestyles)
+        linestyles = [:solid for _ = 1:n_datasets]
+    end
+
     # Create figure
     fig = Figure(size = figsize)
     ax = Axis(
@@ -364,11 +370,11 @@ function compare_bin_efficiency_data(
         title = title,
         xlabel = xlabel,
         ylabel = ylabel,
-        titlesize = 24,  # Increased from 20
-        xlabelsize = 20,  # Increased from 16
-        ylabelsize = 20,  # Increased from 16
-        xticklabelsize = 16,  # Increased from 14
-        yticklabelsize = 16,  # Increased from 14
+        titlesize = 20,
+        xlabelsize = 16,
+        ylabelsize = 16,
+        xticklabelsize = 14,
+        yticklabelsize = 14,
     )
 
     # Plot each dataset
@@ -403,7 +409,14 @@ function compare_bin_efficiency_data(
 
         # Connect points with lines
         if any(valid_mask)
-            lines!(ax, x_values, y_values, color = colors[i], linewidth = 2)
+            lines!(
+                ax,
+                x_values,
+                y_values,
+                color = colors[i],
+                linewidth = 2,
+                linestyle = linestyles[i],
+            )
         end
     end
 
