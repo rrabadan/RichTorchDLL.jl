@@ -33,6 +33,14 @@ export plot_efficiency_vs_momentum,
     compare_per_bin_misid_efficiencies,
     plot_nonzero_fraction_histogram,
     compare_performance_curve
+export load_data,
+    is_pion,
+    is_kaon,
+    is_proton,
+    filter_by_momentum,
+    filter_by_momentum!,
+    prepare_dataset,
+    create_binary_labels
 
 include("combination.jl")
 include("scan.jl")
@@ -40,5 +48,6 @@ include("plotting.jl")
 include("trackentry.jl")
 include("pidperformance.jl")
 include("performance_plots.jl")
+include("data_utils.jl")
 
 end # module RichTorchDLL
