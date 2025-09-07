@@ -58,7 +58,9 @@ function load_data(args)
     # Define which branches to read
     branches = [
         "RichDLLk",
-        "TorchDLLk",  # DLL variables
+        "RichDLLp",
+        "TorchDLLk",
+        "TorchDLLp",
         "MCParticleType",         # True particle ID
         "TrackP",                  # Momentum
     ]
@@ -84,9 +86,9 @@ if !(args["luminosity"] in ["Default", "Medium"])
 end
 
 # Figure subdirectory
-fig_subdir = "$(args["luminosity"])/kaon-pion"
+fig_subdir = "$(args["luminosity"])/proton-kaon"
 if args["no-central-modules"]
-    fig_subdir = "$(args["luminosity"])/nocentralmod/kaon-pion"
+    fig_subdir = "$(args["luminosity"])/nocentralmod/proton-kaon"
 end
 luminosity_text = L"L=1×10^{34} cm^{-2}s^{-1}"
 if args["luminosity"] == "Default"
@@ -109,67 +111,87 @@ println("baseline dataset")
 println()
 datasets_base = prepare_dataset(
     df_base,
-    particle_types = [is_kaon, is_pion],
+    particle_types = [is_proton, is_kaon],
     min_p = 2000,
-    max_p = 15000,
+    max_p = 20000,
     min_dll = -300,
     max_dll = 300,
-    dlls = ["DLLk"],
+    dlls = ["DLLk", "DLLp"],
 )
 println("middle dataset")
 println()
 datasets_middle = prepare_dataset(
     df_middle,
-    particle_types = [is_kaon, is_pion],
+    particle_types = [is_proton, is_kaon],
     min_p = 2000,
-    max_p = 15000,
+    max_p = 20000,
     min_dll = -300,
     max_dll = 300,
-    dlls = ["DLLk"],
+    dlls = ["DLLk", "DLLp"],
 )
 println()
 
-df_kpi_base = datasets_base.filtered
+df_pk_base = datasets_base.filtered
 rich_base = datasets_base.rich
 torch_base = datasets_base.torch
 
-df_kpi_middle = datasets_middle.filtered
+df_pk_middle = datasets_middle.filtered
 rich_middle = datasets_middle.rich
 torch_middle = datasets_middle.torch
 
 # Create binary labels (1 for kaons, 0 for pions)
-labels_base = create_binary_labels(df_kpi_base, is_kaon)
-rich_labels_base = create_binary_labels(rich_base, is_kaon)
-torch_labels_base = create_binary_labels(torch_base, is_kaon)
+labels_base = create_binary_labels(df_pk_base, is_proton)
+rich_labels_base = create_binary_labels(rich_base, is_proton)
+torch_labels_base = create_binary_labels(torch_base, is_proton)
 
-labels_middle = create_binary_labels(df_kpi_middle, is_kaon)
-rich_labels_middle = create_binary_labels(rich_middle, is_kaon)
-torch_labels_middle = create_binary_labels(torch_middle, is_kaon)
+labels_middle = create_binary_labels(df_pk_middle, is_proton)
+rich_labels_middle = create_binary_labels(rich_middle, is_proton)
+torch_labels_middle = create_binary_labels(torch_middle, is_proton)
 
-println(nrow(torch_base), " entries with valid TORCH DLLK (baseline)")
-println(nrow(torch_middle), " entries with valid TORCH DLLK (middle)")
+println(nrow(torch_base), " entries with valid TORCH DLLs (baseline)")
+println(nrow(torch_middle), " entries with valid TORCH DLLs (middle)")
 
 # Define momentum bins with custom edges
-momentum_bins = [2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0]
+momentum_bins = [
+    2.0,
+    3.0,
+    4.0,
+    5.0,
+    6.0,
+    7.0,
+    8.0,
+    9.0,
+    10.0,
+    11.0,
+    12.0,
+    13.0,
+    14.0,
+    15.0,
+    16.0,
+    17.0,
+    18.0,
+    19.0,
+    20.0,
+]
 misid_rate = 0.05
-yaxis_title_effcomp = L"K^{\pm} \text{ efficiency for 5% } \pi^{\pm} \text{ misID rate}"
+yaxis_title_effcomp = L"p(\bar{p}) \text{ efficiency for 5% } K^{\pm} \text{ misID rate}"
 
-torch_dllk_base = torch_base.TorchDLLk
+torch_dll_base = torch_base.TorchDLLp - torch_base.TorchDLLk
 torch_momentum_base = torch_base.TrackP ./ 1000  # Convert to GeV
 
 torch_eff_base = efficiency_per_momentum_bin_at_misid_rate(
-    torch_dllk_base,
+    torch_dll_base,
     torch_labels_base,
     torch_momentum_base,
     misid_rate,
     momentum_bins,
 )
 
-torch_dllk_middle = torch_middle.TorchDLLk
+torch_dll_middle = torch_middle.TorchDLLp - torch_middle.TorchDLLk
 torch_momentum_middle = torch_middle.TrackP ./ 1000  # Convert to GeV
 
 torch_eff_middle = efficiency_per_momentum_bin_at_misid_rate(
-    torch_dllk_middle,
+    torch_dll_middle,
     torch_labels_middle,
     torch_momentum_middle,
     misid_rate,
@@ -186,12 +208,12 @@ comparison = compare_bin_efficiency_data(
     bin_efferr_list,
     momentum_bins;
     labels = ["Baseline", "Middle"],
-    title = "TORCH Kaon Efficiency",
+    title = "TORCH Proton Efficiency",
     xlabel = "Momentum [GeV/c]",
     ylabel = yaxis_title_effcomp,
     colors = [:crimson :crimson],
     linestyles = [:dash :solid],
-    legend_position = :rt,
+    legend_position = :lb,
     luminosity = luminosity_text,
 )
 
@@ -201,22 +223,22 @@ save_figure(
     figdir = args["output-dir"],
 )
 
-rich_dllk_base = rich_base.RichDLLk
+rich_dll_base = rich_base.RichDLLp - rich_base.RichDLLk
 rich_momentum_base = rich_base.TrackP ./ 1000  # Convert to GeV
 
 rich_eff_base = efficiency_per_momentum_bin_at_misid_rate(
-    rich_dllk_base,
+    rich_dll_base,
     rich_labels_base,
     rich_momentum_base,
     misid_rate,
     momentum_bins,
 )
 
-rich_dllk_middle = rich_middle.RichDLLk
+rich_dll_middle = rich_middle.RichDLLp - rich_middle.RichDLLk
 rich_momentum_middle = rich_middle.TrackP ./ 1000  # Convert to GeV
 
 rich_eff_middle = efficiency_per_momentum_bin_at_misid_rate(
-    rich_dllk_middle,
+    rich_dll_middle,
     rich_labels_middle,
     rich_momentum_middle,
     misid_rate,
@@ -233,12 +255,12 @@ rich_comparison = compare_bin_efficiency_data(
     bin_efferr_list,
     momentum_bins;
     labels = ["Baseline", "Middle"],
-    title = "RICH Kaon Efficiency",
+    title = "RICH Proton Efficiency",
     xlabel = "Momentum [GeV/c]",
     ylabel = yaxis_title_effcomp,
     colors = [:royalblue :royalblue],
     linestyles = [:dash :solid],
-    legend_position = :rc,
+    legend_position = :rt,
     luminosity = luminosity_text,
 )
 
@@ -250,23 +272,23 @@ save_figure(
 
 println("Optimizing combination model...")
 
-dllk_rich_base = df_kpi_base.RichDLLk
-dllk_torch_base = df_kpi_base.TorchDLLk
+dll_rich_base = df_pk_base.RichDLLp - df_pk_base.RichDLLk
+dll_torch_base = df_pk_base.TorchDLLp - df_pk_base.TorchDLLk
 
-dllk_rich_middle = df_kpi_middle.RichDLLk
-dllk_torch_middle = df_kpi_middle.TorchDLLk
+dll_rich_middle = df_pk_middle.RichDLLp - df_pk_middle.RichDLLk
+dll_torch_middle = df_pk_middle.TorchDLLp - df_pk_middle.TorchDLLk
 
 scan_results_base = run_parameter_scan_1d(
-    dllk_rich_base,
-    dllk_torch_base,
+    dll_rich_base,
+    dll_torch_base,
     labels_base,
     :w,                 # scan_var
     -20.0:0.5:20.0,     # scan_range
     0.0,                # bias fixed_value
 )
 scan_results_middle = run_parameter_scan_1d(
-    dllk_rich_middle,
-    dllk_torch_middle,
+    dll_rich_middle,
+    dll_torch_middle,
     labels_middle,
     :w,                 # scan_var
     -20.0:0.5:20.0,     # scan_range
@@ -286,15 +308,15 @@ middle_best_b = 0.0  # Using fixed bias of 0
 
 
 # Create combined scores
-combined_dllk_base = dllk_rich_base .+ (base_best_w .* dllk_torch_base .+ base_best_b)
-combined_dllk_middle =
-    dllk_rich_middle .+ (middle_best_w .* dllk_torch_middle .+ middle_best_b)
+combined_dll_base = dll_rich_base .+ (base_best_w .* dll_torch_base .+ base_best_b)
+combined_dll_middle =
+    dll_rich_middle .+ (middle_best_w .* dll_torch_middle .+ middle_best_b)
 
-momentum_base = df_kpi_base.TrackP ./ 1000  # Convert to GeV
-momentum_middle = df_kpi_middle.TrackP ./ 1000  # Convert to GeV
+momentum_base = df_pk_base.TrackP ./ 1000  # Convert to GeV
+momentum_middle = df_pk_middle.TrackP ./ 1000  # Convert to GeV
 
 rich_eff_base = efficiency_per_momentum_bin_at_misid_rate(
-    dllk_rich_base,
+    dll_rich_base,
     labels_base,
     momentum_base,
     misid_rate,
@@ -302,7 +324,7 @@ rich_eff_base = efficiency_per_momentum_bin_at_misid_rate(
 )
 
 rich_eff_middle = efficiency_per_momentum_bin_at_misid_rate(
-    dllk_rich_middle,
+    dll_rich_middle,
     labels_middle,
     momentum_middle,
     misid_rate,
@@ -310,7 +332,7 @@ rich_eff_middle = efficiency_per_momentum_bin_at_misid_rate(
 )
 
 comb_eff_base = efficiency_per_momentum_bin_at_misid_rate(
-    combined_dllk_base,
+    combined_dll_base,
     labels_base,
     momentum_base,
     misid_rate,
@@ -318,7 +340,7 @@ comb_eff_base = efficiency_per_momentum_bin_at_misid_rate(
 )
 
 comb_eff_middle = efficiency_per_momentum_bin_at_misid_rate(
-    combined_dllk_middle,
+    combined_dll_middle,
     labels_middle,
     momentum_middle,
     misid_rate,
@@ -349,13 +371,14 @@ comparison = compare_bin_efficiency_data(
     _bin_eff_list,
     _bin_efferr_list,
     momentum_bins;
+    figsize = (600, 500),
     labels = ["RICH Baseline", "RICH Middle", "Combined Baseline", "Combined Middle"],
-    title = "Kaon Efficiency",
+    title = "Proton Efficiency",
     xlabel = "Momentum [GeV/c]",
     ylabel = yaxis_title_effcomp,
     colors = [:royalblue, :royalblue, :black, :black],
     linestyles = [:dash, :solid, :dash, :solid],
-    legend_position = :rb,
+    legend_position = :rt,
     luminosity = luminosity_text,
 )
 
@@ -365,21 +388,8 @@ save_figure(
     figdir = args["output-dir"],
 )
 
-momentum_mask_base = momentum_base .< 10
-momentum_mask_middle = momentum_middle .< 10
-
-all_scores = [
-    dllk_rich_base[momentum_mask_base],
-    dllk_rich_middle[momentum_mask_middle],
-    combined_dllk_base[momentum_mask_base],
-    combined_dllk_middle[momentum_mask_middle],
-]
-all_labels = [
-    labels_base[momentum_mask_base],
-    labels_middle[momentum_mask_middle],
-    labels_base[momentum_mask_base],
-    labels_middle[momentum_mask_middle],
-]
+all_scores = [dll_rich_base, dll_rich_middle, combined_dll_base, combined_dll_middle]
+all_labels = [labels_base, labels_middle, labels_base, labels_middle]
 
 curves_lowmom, curves_lowmom_log = compare_performance_curve(
     all_scores,
@@ -387,9 +397,10 @@ curves_lowmom, curves_lowmom_log = compare_performance_curve(
     ["RICH baseline", "RICH middle", "RICH+TORCH baseline", "RICH+TORCH middle"],
     [:royalblue, :royalblue, :black, :black],
     linestyles = [:dash, :solid, :dash, :solid];
-    title = " 2 < p < 10 GeV/c",
-    xlabel = L"K^{\pm} \text{ efficiency}",
-    ylabel = L"\pi^{\pm} \text{ missID rate}",
+    figsize = (600, 500),
+    title = " 2 < p < 20 GeV/c",
+    xlabel = L"p(\bar{p}) \text{ efficiency}",
+    ylabel = L"K^{\pm} \text{ missID rate}",
     luminosity = luminosity_text,
 )
 
