@@ -1,6 +1,7 @@
 using ArgParse
 using CairoMakie
 using DataFrames
+using LaTeXStrings
 using RichTorchDLL
 
 CairoMakie.activate!(type = "png")  # Use PNG backend for saving figures
@@ -31,22 +32,12 @@ function parse_args()
         "--plot-dlls"
         help = "Whether to plot DLL distributions"
         action = :store_true
+
+        "--no-central-modules"
+        help = "Whether to exclude central modules from the analysis"
+        action = :store_true
     end
     return ArgParse.parse_args(s)
-end
-
-function save_figure(
-    fig,
-    filename::String;
-    figdir::String = "./figures",
-    ext::String = "png",
-)
-    figpath = joinpath(figdir, "$(filename).$(ext)")
-    # ensure directory exists (including any subdirectories in filename)
-    mkpath(dirname(figpath))
-    # Makie's save expects (filename, figure)
-    save(figpath, fig)
-    println("Figure saved to: $figpath")
 end
 
 args = parse_args()
@@ -63,16 +54,35 @@ if !(args["luminosity"] in ["Default", "Medium"])
     )
 end
 
+no_central_modules = args["no-central-modules"]
+if no_central_modules && (args["scenario"] == "middle")
+    error("Central modules excluded in the middle scenario by default.")
+    exit()
+end
+
 # Figure subdirectory
 fig_subdir = "$(args["luminosity"])-$(args["scenario"])/kaon-pion"
+if no_central_modules
+    fig_subdir = "$(args["luminosity"])-$(args["scenario"])-nocentralmod/kaon-pion"
+end
 savefig_func =
     (fig, filename, kwargs...) ->
         save_figure(fig, filename; figdir = "$(args["output-dir"])/$fig_subdir", kwargs...)
 
+luminosity_text = L"L=1×10^{34} cm^{-2}s^{-1}"
+if args["luminosity"] == "Default"
+    luminosity_text = L"L=1.5×10^{34} cm^{-2}s^{-1}"
+end
+
 # Load data
 try
     println("Loading data...")
-    global df = load_data(args["data-dir"], args["luminosity"], args["scenario"])
+    global df = load_data(
+        args["data-dir"],
+        args["luminosity"],
+        args["scenario"],
+        no_central_modules,
+    )
 catch e
     println("Cannot load data.")
     exit()
@@ -83,8 +93,8 @@ datasets = prepare_dataset(
     particle_types = [is_pion, is_kaon],
     min_p = 2000,
     max_p = 15000,
-    min_dll = -100,
-    max_dll = 100,
+    min_dll = -300,
+    max_dll = 300,
     dlls = ["DLLk"],
 )
 
@@ -113,6 +123,7 @@ if plot_dlls
         labels = [L"\pi^{\pm}" L"K^{\pm}"],
         xlabel = "DLLk",
         title = "RICH DLLk",
+        limits = ((-200, 200), nothing),
         histtype = :bar,
     )
     ax_torch = multi_histogram!(
@@ -121,6 +132,7 @@ if plot_dlls
         labels = [L"\pi^{\pm}" L"K^{\pm}"],
         xlabel = "DLLk",
         title = "TORCH DLLk",
+        limits = ((-100, 100), nothing),
         histtype = :bar,
         #size=(800, 600)
     )
@@ -137,6 +149,7 @@ if plot_dlls
         labels = [L"\pi^{\pm}" L"K^{\pm}"],
         xlabel = "DLLk",
         title = "RICH DLLk",
+        limits = ((-200, 200), nothing),
         histtype = :bar,
     )
     ax_torch = multi_histogram!(
@@ -145,6 +158,7 @@ if plot_dlls
         labels = [L"\pi^{\pm}" L"K^{\pm}"],
         xlabel = "DLLk",
         title = "TORCH DLLk",
+        limits = ((-100, 100), nothing),
         histtype = :bar,
     )
     save_figure(fig, "$(fig_subdir)/dll_distributions_valid", figdir = args["output-dir"])
@@ -175,7 +189,7 @@ save_figure(scan_results.figure, "$(fig_subdir)/scan_w", figdir = args["output-d
 # Get best weight from scan
 best_w = scan_results.results.best.param
 best_b = 0.0  # Using fixed bias of 0
-
+#
 # Plot efficiency vs momentum for RICH, TORCH, and combined classifier
 println("Plotting efficiency vs momentum...")
 
@@ -184,6 +198,8 @@ momentum_bins = [2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0,
 
 # Find threshold for 5% misid rate
 target_misid = 0.05
+
+yaxis_title_effmom = L"K^{\pm} \text{efficiency (} \pi^{\pm} \text{ misID rate})"
 
 # Create efficiency plots for RICH DLLk
 vrich_dllk = vrich.RichDLLk
@@ -197,8 +213,10 @@ eff_vrich = efficiency_vs_momentum_with_per_bin_misid(
     momentum_bins;
     title = "RICH Efficiency",
     xlabel = "Momentum [GeV/c]",
+    ylabel = yaxis_title_effmom,
     color = :royalblue,
     legend_position = :rc,
+    luminosity = luminosity_text,
 )
 
 eff_rich = efficiency_vs_momentum_with_per_bin_misid(
@@ -209,16 +227,24 @@ eff_rich = efficiency_vs_momentum_with_per_bin_misid(
     momentum_bins;
     title = "RICH Efficiency",
     xlabel = "Momentum [GeV/c]",
+    ylabel = yaxis_title_effmom,
     color = :royalblue,
     legend_position = :rc,
+    luminosity = luminosity_text,
 )
 
 valid_rich_fraction = plot_nonzero_fraction_histogram(
     rich_dllk,
     momentum,
     momentum_bins;
-    title = "Fraction of valid RICH DLLk",
+    title = "Valid RICH DLLk",
     color = :gray,
+)
+add_luminosity_text!(
+    valid_rich_fraction.ax,
+    args["luminosity"],
+    position = :rt,
+    fontsize = 14,
 )
 
 # Create efficiency plots for TORCH DLLk
@@ -233,8 +259,10 @@ eff_vtorch = efficiency_vs_momentum_with_per_bin_misid(
     momentum_bins;
     title = "TORCH Efficiency",
     xlabel = "Momentum [GeV/c]",
+    ylabel = yaxis_title_effmom,
     color = :crimson,
-    legend_position = :rc,
+    legend_position = :rt,
+    luminosity = luminosity_text,
 )
 
 eff_torch = efficiency_vs_momentum_with_per_bin_misid(
@@ -245,16 +273,24 @@ eff_torch = efficiency_vs_momentum_with_per_bin_misid(
     momentum_bins;
     title = "TORCH Efficiency",
     xlabel = "Momentum [GeV/c]",
+    ylabel = yaxis_title_effmom,
     color = :crimson,
-    legend_position = :rc,
+    legend_position = :rt,
+    luminosity = luminosity_text,
 )
 
 valid_torch_fraction = plot_nonzero_fraction_histogram(
     torch_dllk,
     momentum,
     momentum_bins;
-    title = "Fraction of valid TORCH DLLk",
+    title = "Valid TORCH DLLk",
     color = :gray,
+)
+add_luminosity_text!(
+    valid_torch_fraction.ax,
+    args["luminosity"],
+    position = :rt,
+    fontsize = 14,
 )
 
 # Create combined scores
@@ -267,10 +303,12 @@ eff_combined = efficiency_vs_momentum_with_per_bin_misid(
     momentum,
     target_misid,
     momentum_bins;
-    title = "Combined Efficiency",
+    title = "RICH + TORCH efficiency",
     xlabel = "Momentum [GeV/c]",
+    ylabel = yaxis_title_effmom,
     color = :black,
     legend_position = :rc,
+    luminosity = luminosity_text,
 )
 
 # Compare combined against RICH DLLk's
@@ -281,16 +319,20 @@ bin_centers_list = [rich_bin_data.bin_centers, comb_bin_data.bin_centers]
 bin_eff_list = [rich_bin_data.efficiency, comb_bin_data.efficiency]
 bin_efferr_list = [rich_bin_data.efficiency_error, comb_bin_data.efficiency_error]
 
+yaxis_title_effcomp = L"K^{\pm} \text{ efficiency for 5% } \pi^{\pm} \text{ misID rate}"
+
 eff_comparison = compare_bin_efficiency_data(
     bin_centers_list,
     bin_eff_list,
     bin_efferr_list,
     momentum_bins;
     labels = ["RICH", "RICH+TORCH"],
-    title = "Kaon Efficiency (5% Pion Misid)",
+    title = "",
     xlabel = "Momentum [GeV/c]",
+    ylabel = yaxis_title_effcomp,
     colors = [:royalblue, :black],
     legend_position = :rb,
+    luminosity = luminosity_text,
 )
 
 # Compare combined against RICH DLLk's for all valid tracks
@@ -303,10 +345,12 @@ eff_vcombined = efficiency_vs_momentum_with_per_bin_misid(
     vmomentum,
     target_misid,
     momentum_bins;
-    title = "Combined Efficiency",
+    title = "RICH + TORCH efficiency",
     xlabel = "Momentum [GeV/c]",
+    ylabel = yaxis_title_effmom,
     color = :black,
     legend_position = :rc,
+    luminosity = luminosity_text,
 )
 
 combined_bin_data = eff_combined.bin_data
@@ -318,11 +362,13 @@ eff_combined_comparison = compare_bin_efficiency_data(
     [combined_bin_data.efficiency_error, vcombined_bin_data.efficiency_error],
     momentum_bins;
     labels = ["All Tracks", "Tracks with valid DLL"],
-    title = "Combined Kaon Efficiency (5% Pion Misid)",
+    title = "RICH + TORCH efficiency",
     xlabel = "Momentum [GeV/c]",
+    ylabel = yaxis_title_effcomp,
     colors = [:black, :black],
     linestyles = [:solid, :dash],
     legend_position = :rb,
+    luminosity = luminosity_text,
 )
 
 rich_bin_data = eff_vrich.bin_data
@@ -338,10 +384,12 @@ eff_vcomparison = compare_bin_efficiency_data(
     bin_efferr_list,
     momentum_bins;
     labels = ["RICH", "RICH+TORCH"],
-    title = "Kaon Efficiency (5% Pion Misid)",
+    title = "Kaon Efficiency",
     xlabel = "Momentum [GeV/c]",
+    ylabel = yaxis_title_effcomp,
     colors = [:royalblue, :black],
     legend_position = :rb,
+    luminosity = luminosity_text,
 )
 
 all_scores = [rich_dllk, combined_dllk]
@@ -353,17 +401,41 @@ curves, curves_log = compare_performance_curve(
     all_labels,
     ["RICH", "RICH+TORCH"],
     [:royalblue, :black],
+    title = " 2 < p < 15 GeV/c",
+    xlabel = L"K^{\pm} \text{ efficiency}",
+    ylabel = L"\pi^{\pm} \text{ missID rate}",
+    luminosity = luminosity_text,
+)
+
+# Get mask for low momentum tracks (p < 10 GeV/c)
+low_mom_mask = momentum .< 10.0
+
+all_scores = [rich_dllk[low_mom_mask], combined_dllk[low_mom_mask]]
+all_labels = [labels[low_mom_mask], labels[low_mom_mask]]
+
+curves_lowmom, curves_lowmom_log = compare_performance_curve(
+    all_scores,
+    all_labels,
+    ["RICH", "RICH+TORCH"],
+    [:royalblue, :black],
+    title = " 2 < p < 10 GeV/c",
+    xlabel = L"K^{\pm} \text{ efficiency}",
+    ylabel = L"\pi^{\pm} \text{ missID rate}",
+    luminosity = luminosity_text,
 )
 
 all_vscores = [vrichtorch.RichDLLk, combined_vdllk]
 all_vlabels = [vlabels, vlabels]
 
-println("Plotting performance curve...")
 vcurves, vcurves_log = compare_performance_curve(
     all_vscores,
     all_vlabels,
     ["RICH", "RICH+TORCH"],
     [:royalblue, :black],
+    title = " 2 < p < 15 GeV/c",
+    xlabel = L"K^{\pm} \text{ efficiency}",
+    ylabel = L"\pi^{\pm} \text{ missID rate}",
+    luminosity = luminosity_text,
 )
 
 # Save figures
@@ -426,6 +498,16 @@ save_figure(
 )
 save_figure(curves, "$(fig_subdir)/performance_curve", figdir = args["output-dir"])
 save_figure(curves_log, "$(fig_subdir)/performance_curve_log", figdir = args["output-dir"])
+save_figure(
+    curves_lowmom,
+    "$(fig_subdir)/performance_curve_lowmom",
+    figdir = args["output-dir"],
+)
+save_figure(
+    curves_lowmom_log,
+    "$(fig_subdir)/performance_curve_lowmom_log",
+    figdir = args["output-dir"],
+)
 
 save_figure(vcurves, "$(fig_subdir)/performance_curve_valid", figdir = args["output-dir"])
 save_figure(
@@ -435,7 +517,6 @@ save_figure(
 )
 
 println("Plots saved to $(args["output-dir"])/$(fig_subdir)/ directory")
-
 
 # Print performance summary
 #println("\nPerformance Summary (5% Misid Rate):")
