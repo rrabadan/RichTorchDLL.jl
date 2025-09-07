@@ -14,8 +14,17 @@ Load data from ROOT file for a given luminosity and scenario.
 # Returns
 A DataFrame containing the loaded data
 """
-function load_data(data_dir::String, luminosity::String, scenario::String)
+function load_data(
+    data_dir::String,
+    luminosity::String,
+    scenario::String,
+    no_central_modules::Bool,
+)
     filename = "Expert-ProtoTuple-Run5-$(luminosity)-$(scenario).root"
+    if no_central_modules
+        filename = replace(filename, ".root" => "-nocentralmod.root")
+        println("Loading data without central modules")
+    end
     filepath = joinpath(data_dir, filename)
     println("Loading data from: $filepath")
 

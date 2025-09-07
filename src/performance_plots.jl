@@ -1004,7 +1004,7 @@ function compare_performance_curve(
         ylabelsize = 16,
         xticklabelsize = 14,
         yticklabelsize = 14,
-        titlealign = get(kwargs, :titlealign, :left),
+        #titlealign=get(kwargs, :titlealign, :left),
     )
 
     fig_log = Figure(size = figsize)
