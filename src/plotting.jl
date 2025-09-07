@@ -1,5 +1,6 @@
 using CairoMakie: Figure, Axis, hist!, stephist!, lines!, text!, axislegend
 using CairoMakie: band!, barplot!, scatter!, hlines!
+using CairoMakie: Legend, Label
 using StatsBase: fit, Histogram
 
 function histogram_plot!(
@@ -45,7 +46,7 @@ function histogram_plot(
     histtype = :step,
     color = :blue,
     linewidth = 2,
-    figsize = (600, 400),
+    figsize = (500, 400),
 )
     f = Figure(size = figsize)
     histogram_plot!(
@@ -155,6 +156,7 @@ function multi_histogram!(
         xlabelsize = 16,
         ylabelsize = 16,
         titlesize = 18,
+        titlealign = :left,
     )
 
     if grid
@@ -203,6 +205,7 @@ function multi_histogram!(
             framealpha = 0.1,
         )
     end
+    add_top_right_text!(f[1, 1], L"L=1×10^{34} cm^{-2}s^{-1}")
     return ax
 end
 
@@ -221,7 +224,7 @@ function multi_histogram(
     histtype = :step,
     show_legend = true,
     legend_position = :rt,
-    figsize = (600, 400),
+    figsize = (500, 400),
 )
     f = Figure(size = figsize)
     multi_histogram!(
@@ -257,7 +260,7 @@ end
         bins = 100,
         color1 = :royalblue,
         color2 = :crimson,
-        figsize = (800, 600),
+        figsize = (500, 400),
         ratio_range = (0.5, 1.5),
         normalize = false,
         hist_type = :step
@@ -311,7 +314,7 @@ function histogram_with_ratio(
     bins = 100,
     color1 = :royalblue,
     color2 = :crimson,
-    figsize = (800, 600),
+    figsize = (500, 400),
     ratio_range = (0.5, 1.5),
     normalize = false,
     hist_type = :step,
@@ -661,4 +664,46 @@ function histogram_grid(
     end
 
     return fig
+end
+
+function add_luminosity_text!(
+    ax::Axis,
+    scenario::String;
+    position::Symbol = :rt,
+    fontsize::Int = 16,
+    color::Symbol = :black,
+)
+
+    if scenario == "Medium"
+        text = L"L=1×10^{34} cm^{-2}s^{-1}"
+    elseif scenario == "Default"
+        text = L"L=1.5×10^{34} cm^{-2}s^{-1}"
+    else
+        text = ""
+        println("Unknown scenario for luminosity text")
+    end
+
+    limits = ax.limits[]
+
+    if position == :lt
+        x_pos = limits[1]
+        y_pos = limits[4]
+        align = (:left, :top)
+    else
+        x_pos = limits[2]
+        y_pos = limits[4]
+        align = (:right, :top)
+    end
+
+    # Place the label at the top right cell of the figure grid
+    text!(
+        ax,
+        x_pos,
+        y_pos;
+        text = text,
+        align = align,
+        fontsize = fontsize,
+        color = color,
+        font = :bold,
+    )
 end
