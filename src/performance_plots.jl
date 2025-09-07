@@ -10,7 +10,10 @@
         ylabel = "Efficiency",
         figsize = (500, 400),
         color = :royalblue,
-        min_samples = 10
+        min_samples = 10,
+        show_bin_edges = true,
+        tick_format = x -> string(Int(round(x))),
+        kwargs...,
     )
 
 Plot the efficiency as a function of momentum with error bars.
@@ -27,6 +30,9 @@ Plot the efficiency as a function of momentum with error bars.
 - `figsize`: Figure size in pixels
 - `color`: Color for the plot points and line
 - `min_samples`: Minimum number of positive samples required in a bin for plotting
+- `show_bin_edges`: Whether to show bin edges as x-axis ticks
+- `tick_format`: Function to format tick labels
+- `kwargs...`: Additional keyword arguments are passed to the Axis constructor
 
 # Returns
 A tuple containing:
@@ -47,6 +53,7 @@ function plot_efficiency_vs_momentum(
     min_samples = 1,
     show_bin_edges = true,
     tick_format = x -> string(Int(round(x))),
+    kwargs...,
 )
     # Calculate efficiency per bin
     eff_data = efficiency_per_momentum_bin(scores, labels, momentum, threshold, bin_edges)
@@ -63,6 +70,7 @@ function plot_efficiency_vs_momentum(
         ylabelsize = 16,
         xticklabelsize = 14,
         yticklabelsize = 14,
+        titlealign = get(kwargs, :titlealign, :left),
     )
 
     # Filter out bins with too few samples
@@ -124,7 +132,8 @@ end
         min_samples = 10,  # For API compatibility
         show_bin_edges = true,
         tick_format = x -> string(Int(round(x))),
-        show_misid = false
+        show_misid = false,
+        kwargs...,
     )
 
 Plot efficiency vs momentum data directly from provided arrays.
@@ -147,6 +156,7 @@ including bin-by-bin misID rate optimization.
 - `show_bin_edges`: Whether to show bin edges as x-axis ticks
 - `tick_format`: Function to format tick labels
 - `show_misid`: Whether to show achieved misID rate as a second y-axis
+- `kwargs...`: Additional keyword arguments are passed to the Axis constructor
 
 # Returns
 A tuple containing:
@@ -167,9 +177,12 @@ function plot_bin_efficiency_data(
     color = :royalblue,
     show_bin_edges = true,
     tick_format = x -> string(Int(round(x))),
-    show_misid = false,
     legend_position = :rt,
+    kwargs...,
 )
+    titlealign = get(kwargs, :titlealign, :left)
+    luminosity = get(kwargs, :luminosity, nothing)
+
     # Create figure
     fig = Figure(size = figsize)
     ax = Axis(
@@ -182,6 +195,7 @@ function plot_bin_efficiency_data(
         ylabelsize = 16,
         xticklabelsize = 14,
         yticklabelsize = 14,
+        titlealign = titlealign,
     )
 
     # Filter out NaN values
@@ -214,72 +228,29 @@ function plot_bin_efficiency_data(
         ax.xticks = (bin_edges, map(tick_format, bin_edges))
     end
 
-    # Add second y-axis for misID rate if requested
-    if show_misid && achieved_misid !== nothing
-        #ax2 = Axis(
-        #    fig[1, 1],
-        #    ylabel="MisID Rate",
-        #    yaxisposition=:right,
-        #    ytickformat=values -> ["$(round(v*100, digits=1))%" for v in values],
-        #    ylabelsize=16,
-        #    yticklabelsize=14,
-        #)
+    valid_misid_mask = .!isnan.(achieved_misid)
+    misid_x = bin_centers[valid_misid_mask]
+    misid_y = achieved_misid[valid_misid_mask]
 
-        # Hide all elements except the y-axis
-        #hidespines!(ax2)
-        #hidexdecorations!(ax2)
-
-        # Filter out NaN values for misID
-        valid_misid_mask = .!isnan.(achieved_misid)
-        misid_x = bin_centers[valid_misid_mask]
-        misid_y = achieved_misid[valid_misid_mask]
-
-        # Plot misID rates
-        misid_color = :darkred
-        if misid_error !== nothing
-            misid_err = misid_error[valid_misid_mask]
-            errorbars!(
-                ax,
-                misid_x,
-                misid_y,
-                misid_err,
-                color = misid_color,
-                whiskerwidth = 10,
-            )
-        end
-
-        scatter!(
-            ax,
-            misid_x,
-            misid_y,
-            color = misid_color,
-            marker = :diamond,
-            markersize = 8,
-            label = "MisID Rate",
-        )
-        lines!(ax, misid_x, misid_y, color = misid_color, linewidth = 2, linestyle = :dash)
-
-        # Set y-axis limits for misID rate (adjust as needed)
-        # target_misid = mean(filter(!isnan, achieved_misid))
-        # y_margin = max(0.02, 3 * std(filter(!isnan, achieved_misid)))
-        # y_min = max(0, target_misid - y_margin)
-        # y_max = min(1, target_misid + y_margin)
-        # ax2.limits = (nothing, nothing, y_min, y_max)
-
-        # Create a legend entry for misID rate
-        # lines!(ax, [NaN], [NaN], color=misid_color, linestyle=:dash,
-        #    linewidth=2)
-        # scatter!(ax, [NaN], [NaN], color=misid_color, marker=:diamond,
-        #    label="MisID Rate", markersize=8)
-
-        axislegend(
-            ax,
-            position = legend_position,
-            fontsize = 20,
-            framecolor = :black,
-            framealpha = 0.1,
-        )
+    # Plot misID rates
+    misid_color = :darkred
+    if misid_error !== nothing
+        misid_err = misid_error[valid_misid_mask]
+        errorbars!(ax, misid_x, misid_y, misid_err, color = misid_color, whiskerwidth = 10)
     end
+
+    scatter!(
+        ax,
+        misid_x,
+        misid_y,
+        color = misid_color,
+        marker = :diamond,
+        markersize = 8,
+        label = "MisID Rate",
+    )
+    lines!(ax, misid_x, misid_y, color = misid_color, linewidth = 2, linestyle = :dash)
+
+    add_legend!(ax, luminosity; position = legend_position)
 
     return (figure = fig, ax = ax)
 end
@@ -298,7 +269,8 @@ end
         colors = nothing,
         show_bin_edges = true,
         tick_format = x -> string(Int(round(x))),
-        legend_position = :rb
+        legend_position = :rb,
+        kwargs...,
     )
 
 Compare multiple efficiency vs momentum data sets.
@@ -319,6 +291,7 @@ including bin-by-bin misID rate optimization.
 - `show_bin_edges`: Whether to show bin edges as x-axis ticks
 - `tick_format`: Function to format tick labels
 - `legend_position`: Position of the legend
+- `kwargs...`: Additional keyword arguments are passed to the Axis constructor
 
 # Returns
 A tuple containing:
@@ -340,10 +313,14 @@ function compare_bin_efficiency_data(
     show_bin_edges = true,
     tick_format = x -> string(Int(round(x))),
     legend_position = :rb,
+    kwargs...,
 )
     n_datasets = length(bin_centers_list)
     @assert length(efficiency_list) == n_datasets "Must provide same number of efficiency vectors as bin center vectors"
     @assert length(efficiency_error_list) == n_datasets "Must provide same number of error vectors as bin center vectors"
+
+    titlealign = get(kwargs, :titlealign, :left)
+    luminosity = get(kwargs, :luminosity, nothing)
 
     # Default labels if not provided
     if isnothing(labels)
@@ -373,6 +350,7 @@ function compare_bin_efficiency_data(
         ylabelsize = 16,
         xticklabelsize = 14,
         yticklabelsize = 14,
+        titlealign = titlealign,
     )
 
     # Plot each dataset
@@ -430,13 +408,7 @@ function compare_bin_efficiency_data(
     end
 
     # Add legend
-    axislegend(
-        ax,
-        position = legend_position,
-        fontsize = 20,
-        framecolor = :black,
-        framealpha = 0.1,
-    )
+    add_legend!(ax, luminosity; position = legend_position)
 
     return (figure = fig, ax = ax)
 end
@@ -497,6 +469,7 @@ function efficiency_vs_momentum_for_misid_rate(
 
     return (
         figure = result.figure,
+        ax = result.ax,
         efficiency_data = result.efficiency_data,
         workingpoint = wp,
     )
@@ -517,7 +490,8 @@ end
         min_bin_samples = 10,
         show_bin_edges = true,
         tick_format = x -> string(Int(round(x))),
-        show_misid = true
+        show_misid = true,
+        kwargs...,
     )
 
 Calculate and plot efficiency vs momentum with a per-bin misID rate optimization.
@@ -540,6 +514,7 @@ misID rate within that bin.
 - `show_bin_edges`: Whether to show bin edges as x-axis ticks
 - `tick_format`: Function to format tick labels
 - `show_misid`: Whether to show achieved misID rate as a second y-axis
+- `kwargs...`: Additional keyword arguments are passed to the Axis constructor
 
 # Returns
 A tuple containing:
@@ -562,6 +537,7 @@ function efficiency_vs_momentum_with_per_bin_misid(
     tick_format = x -> string(Int(round(x))),
     show_misid = true,
     legend_position = :rc,
+    kwargs...,
 )
     # Calculate efficiency at target misID rate per bin
     bin_data = efficiency_per_momentum_bin_at_misid_rate(
@@ -590,6 +566,7 @@ function efficiency_vs_momentum_with_per_bin_misid(
         tick_format = tick_format,
         show_misid = show_misid,
         legend_position = legend_position,
+        kwargs...,
     )
 
     return (figure = result.figure, ax = result.ax, bin_data = bin_data)
@@ -610,6 +587,7 @@ end
         colors = nothing,
         min_samples = 10,
         legend_position = :rb
+        kwargs...,
     )
 
 Compare efficiency vs momentum curves for multiple classifiers or configurations.
@@ -628,6 +606,7 @@ Compare efficiency vs momentum curves for multiple classifiers or configurations
 - `colors`: Optional list of colors for each classifier
 - `min_samples`: Minimum number of positive samples required in a bin for plotting
 - `legend_position`: Position of the legend
+- `kwargs...`: Additional keyword arguments are passed to the Axis constructor
 
 # Returns
 A tuple containing:
@@ -650,6 +629,7 @@ function compare_efficiency_vs_momentum(
     legend_position = :lb,
     show_bin_edges = true,
     tick_format = x -> string(Int(round(x))),
+    kwargs...,
 )
     n_configs = length(scores_list)
     @assert length(labels_list) == n_configs "Must provide same number of label vectors as score vectors"
@@ -679,6 +659,7 @@ function compare_efficiency_vs_momentum(
         ylabelsize = 16,
         xticklabelsize = 14,
         yticklabelsize = 14,
+        titlealign = get(kwargs, :titlealign, :left),
     )
 
     # Calculate and plot efficiency for each configuration
@@ -737,17 +718,8 @@ function compare_efficiency_vs_momentum(
     if show_bin_edges
         ax.xticks = (bin_edges, map(tick_format, bin_edges))
     end
-
-    # Add legend directly to the figure rather than to a specific subplot position
-    axislegend(
-        ax,
-        position = legend_position,
-        fontsize = 20,
-        framecolor = :black,
-        framealpha = 0.1,
-    )
-
-    return (figure = fig, efficiency_data = eff_data_list)
+    add_legend!(ax; title = get(kwargs, :luminosity, nothing), position = legend_position)
+    return (figure = fig, ax = ax, efficiency_data = eff_data_list)
 end
 
 """
@@ -766,7 +738,8 @@ end
         min_bin_samples = 10,
         show_bin_edges = true,
         tick_format = x -> string(Int(round(x))),
-        legend_position = :rb
+        legend_position = :rb,
+        kwargs...,
     )
 
 Compare the efficiency vs momentum curves for multiple classifiers using
@@ -789,6 +762,7 @@ momentum bin to achieve the target misID rate within that bin.
 - `show_bin_edges`: Whether to show bin edges as x-axis ticks
 - `tick_format`: Function to format tick labels
 - `legend_position`: Position of the legend
+- `kwargs...`: Additional keyword arguments are passed to the Axis constructor
 
 # Returns
 A tuple containing:
@@ -811,6 +785,7 @@ function compare_per_bin_misid_efficiencies(
     show_bin_edges = true,
     tick_format = x -> string(Int(round(x))),
     legend_position = :rb,
+    kwargs...,
 )
     n_configs = length(scores_list)
     @assert length(labels_list) == n_configs "Must provide same number of label vectors as score vectors"
@@ -864,6 +839,7 @@ function compare_per_bin_misid_efficiencies(
         show_bin_edges = show_bin_edges,
         tick_format = tick_format,
         legend_position = legend_position,
+        kwargs...,
     )
 
     return (figure = result.figure, bin_data_list = bin_data_list)
@@ -881,7 +857,8 @@ end
         min_samples = 10,
         show_bin_edges = true,
         tick_format = x -> string(Int(round(x))),
-        figsize = (500, 400)
+        figsize = (500, 400),
+        kwargs...,
     )
 
 Creates a bar histogram showing the fraction of non-zero scores per momentum bin.
@@ -898,6 +875,7 @@ Creates a bar histogram showing the fraction of non-zero scores per momentum bin
 - `show_bin_edges`: Whether to show bin edges as x-axis ticks
 - `tick_format`: Function to format tick labels
 - `figsize`: Size of the figure
+- `kwargs...`: Additional keyword arguments are passed to the Axis constructor
 
 # Returns
 A tuple containing:
@@ -917,6 +895,7 @@ function plot_nonzero_fraction_histogram(
     show_bin_edges = true,
     tick_format = x -> string(Int(round(x))),
     figsize = (500, 400),
+    kwargs...,
 )
     # Calculate fraction of non-zero scores per bin
     fraction_data = fraction_nonzero_per_momentum_bin(scores, momentum, bin_edges)
@@ -932,6 +911,7 @@ function plot_nonzero_fraction_histogram(
         ylabelsize = 16,
         xticklabelsize = 14,
         yticklabelsize = 14,
+        titlealign = get(kwargs, :titlealign, :left),
     )
 
     # Filter out bins with too few samples
@@ -1001,8 +981,6 @@ function compare_performance_curve(
     labels_list::Vector{<:AbstractVector{<:Integer}},
     legends_list::Vector{String},
     colors_list::Vector{Symbol};
-    #bin_edges_x::Union{AbstractVector{<:Real},Nothing}=nothing,
-    #bin_edges_y::Union{AbstractVector{<:Real},Nothing}=nothing,
     kwargs...,
 )
 
@@ -1010,7 +988,6 @@ function compare_performance_curve(
     xlabel = get(kwargs, :xlabel, "Efficiency")
     ylabel = get(kwargs, :ylabel, "MisID Probability")
     legend_position = get(kwargs, :legend_position, :lt)
-    logy = get(kwargs, :logy, false)
     figsize = get(kwargs, :figsize, (500, 400))
 
     n_configs = length(scores_list)
@@ -1027,6 +1004,7 @@ function compare_performance_curve(
         ylabelsize = 16,
         xticklabelsize = 14,
         yticklabelsize = 14,
+        titlealign = get(kwargs, :titlealign, :left),
     )
 
     fig_log = Figure(size = figsize)
@@ -1085,19 +1063,22 @@ function compare_performance_curve(
     ax.yticks = 0:0.2:1.0
     ax_log.yticks = [0.01, 0.05, 0.1, 0.5, 1.0]
 
-    axislegend(
-        ax,
-        position = legend_position,
-        fontsize = 20,
-        framecolor = :black,
-        framealpha = 0.1,
-    )
-    axislegend(
-        ax_log,
-        position = legend_position,
-        fontsize = 20,
-        framecolor = :black,
-        framealpha = 0.1,
-    )
+    luminosity = get(kwargs, :luminosity, nothing)
+    add_legend!(ax, luminosity, position = legend_position)
+    add_legend!(ax_log, luminosity, position = legend_position)
     return fig, fig_log
+end
+
+function add_legend!(ax::Axis, title::Union{Any,Nothing} = nothing; kwargs...)
+    defaults = (
+        position = :lt,
+        fontsize = 18,
+        framecolor = :black,
+        framealpha = 0.1,
+        titlehalign = :left,
+    )
+    legend_kwargs = merge(defaults, kwargs)
+
+    isnothing(title) ? axislegend(ax; legend_kwargs...) :
+    axislegend(ax, title; legend_kwargs...)
 end
