@@ -8,7 +8,7 @@
         title = "Efficiency vs Momentum",
         xlabel = "Momentum",
         ylabel = "Efficiency",
-        figsize = (600, 400),
+        figsize = (500, 400),
         color = :royalblue,
         min_samples = 10
     )
@@ -42,7 +42,7 @@ function plot_efficiency_vs_momentum(
     title = "Efficiency vs Momentum",
     xlabel = "Momentum",
     ylabel = "Efficiency",
-    figsize = (600, 400),
+    figsize = (500, 400),
     color = :royalblue,
     min_samples = 1,
     show_bin_edges = true,
@@ -86,7 +86,7 @@ function plot_efficiency_vs_momentum(
     ax.ygridvisible = true
 
     # Set y-axis limits from 0 to 1 for efficiency
-    ax.limits = (nothing, nothing, 0, 1.05)
+    ax.limits = (bin_edges[begin], bin_edges[end], 0, 1.08)
 
     # Set y-axis ticks to 0, 0.2, 0.4, 0.6, 0.8, 1.0
     ax.yticks = 0:0.1:1.0
@@ -119,7 +119,7 @@ end
         title = "Efficiency vs Momentum",
         xlabel = "Momentum",
         ylabel = "Efficiency",
-        figsize = (600, 400),
+        figsize = (500, 400),
         color = :royalblue,
         min_samples = 10,  # For API compatibility
         show_bin_edges = true,
@@ -163,7 +163,7 @@ function plot_bin_efficiency_data(
     title = "Efficiency vs Momentum",
     xlabel = "Momentum",
     ylabel = "Efficiency",
-    figsize = (600, 400),
+    figsize = (500, 400),
     color = :royalblue,
     show_bin_edges = true,
     tick_format = x -> string(Int(round(x))),
@@ -204,7 +204,7 @@ function plot_bin_efficiency_data(
     ax.ygridvisible = true
 
     # Set y-axis limits from 0 to 1 for efficiency
-    ax.limits = (nothing, nothing, 0, 1.05)
+    ax.limits = (bin_edges[begin], bin_edges[end], 0, 1.08)
 
     # Set y-axis ticks to 0, 0.2, 0.4, 0.6, 0.8, 1.0
     ax.yticks = 0:0.1:1.0
@@ -233,8 +233,6 @@ function plot_bin_efficiency_data(
         valid_misid_mask = .!isnan.(achieved_misid)
         misid_x = bin_centers[valid_misid_mask]
         misid_y = achieved_misid[valid_misid_mask]
-
-        ax.ylabel = "Efficiency (MisID Rate)"
 
         # Plot misID rates
         misid_color = :darkred
@@ -296,7 +294,7 @@ end
         title = "Efficiency Comparison",
         xlabel = "Momentum",
         ylabel = "Efficiency",
-        figsize = (600, 400),
+        figsize = (500, 400),
         colors = nothing,
         show_bin_edges = true,
         tick_format = x -> string(Int(round(x))),
@@ -336,7 +334,7 @@ function compare_bin_efficiency_data(
     title = "Efficiency Comparison",
     xlabel = "Momentum",
     ylabel = "Efficiency",
-    figsize = (600, 400),
+    figsize = (500, 400),
     colors = nothing,
     linestyles = nothing,
     show_bin_edges = true,
@@ -398,16 +396,8 @@ function compare_bin_efficiency_data(
             color = colors[i],
             whiskerwidth = 10,
         )
-        scatter!(
-            ax,
-            x_values,
-            y_values,
-            color = colors[i],
-            markersize = 8,
-            label = labels[i],
-        )
 
-        # Connect points with lines
+        # Connect points with lines and include in legend
         if any(valid_mask)
             lines!(
                 ax,
@@ -416,8 +406,12 @@ function compare_bin_efficiency_data(
                 color = colors[i],
                 linewidth = 2,
                 linestyle = linestyles[i],
+                label = labels[i],
             )
         end
+
+        # Plot scatter points on top of lines
+        scatter!(ax, x_values, y_values, color = colors[i], markersize = 8)
     end
 
     # Add grid lines
@@ -425,7 +419,7 @@ function compare_bin_efficiency_data(
     ax.ygridvisible = true
 
     # Set y-axis limits from 0 to 1 for efficiency
-    ax.limits = (nothing, nothing, 0, 1.05)
+    ax.limits = (bin_edges[begin], bin_edges[end], 0, 1.08)
 
     # Set y-axis ticks to 0, 0.2, 0.4, 0.6, 0.8, 1.0
     ax.yticks = 0:0.1:1.0
@@ -518,7 +512,7 @@ end
         title = "Efficiency vs Momentum (Per-Bin MisID)",
         xlabel = "Momentum",
         ylabel = "Efficiency",
-        figsize = (600, 400),
+        figsize = (500, 400),
         color = :royalblue,
         min_bin_samples = 10,
         show_bin_edges = true,
@@ -561,7 +555,7 @@ function efficiency_vs_momentum_with_per_bin_misid(
     title = "Efficiency vs Momentum (Per-Bin MisID)",
     xlabel = "Momentum",
     ylabel = "Efficiency",
-    figsize = (600, 400),
+    figsize = (500, 400),
     color = :royalblue,
     min_bin_samples = 10,
     show_bin_edges = true,
@@ -578,9 +572,6 @@ function efficiency_vs_momentum_with_per_bin_misid(
         bin_edges;
         min_bin_samples = min_bin_samples,
     )
-
-    # Update title to include misID rate
-    title = "$title (Target MisID: $(100*misid_rate)%)"
 
     # Create the plot
     result = plot_bin_efficiency_data(
@@ -601,7 +592,7 @@ function efficiency_vs_momentum_with_per_bin_misid(
         legend_position = legend_position,
     )
 
-    return (figure = result.figure, bin_data = bin_data)
+    return (figure = result.figure, ax = result.ax, bin_data = bin_data)
 end
 
 """
@@ -615,7 +606,7 @@ end
         title = "Efficiency Comparison",
         xlabel = "Momentum",
         ylabel = "Efficiency",
-        figsize = (600, 400),
+        figsize = (500, 400),
         colors = nothing,
         min_samples = 10,
         legend_position = :rb
@@ -653,7 +644,7 @@ function compare_efficiency_vs_momentum(
     title = "Efficiency Comparison",
     xlabel = "Momentum",
     ylabel = "Efficiency",
-    figsize = (600, 400),
+    figsize = (500, 400),
     colors = nothing,
     min_samples = 10,
     legend_position = :lb,
@@ -737,7 +728,7 @@ function compare_efficiency_vs_momentum(
     ax.ygridvisible = true
 
     # Set y-axis limits from 0 to 1 for efficiency
-    ax.limits = (nothing, nothing, 0, 1.05)
+    ax.limits = (bin_edges[begin], bin_edges[end], 0, 1.08)
 
     # Set y-axis ticks to 0, 0.2, 0.4, 0.6, 0.8, 1.0
     ax.yticks = 0:0.2:1.0
@@ -770,7 +761,7 @@ end
         title = "Efficiency Comparison (Per-Bin MisID)",
         xlabel = "Momentum",
         ylabel = "Efficiency",
-        figsize = (600, 400),
+        figsize = (500, 400),
         colors = nothing,
         min_bin_samples = 10,
         show_bin_edges = true,
@@ -814,7 +805,7 @@ function compare_per_bin_misid_efficiencies(
     title = "Efficiency Comparison (Per-Bin MisID)",
     xlabel = "Momentum",
     ylabel = "Efficiency",
-    figsize = (600, 400),
+    figsize = (500, 400),
     colors = nothing,
     min_bin_samples = 10,
     show_bin_edges = true,
@@ -835,9 +826,6 @@ function compare_per_bin_misid_efficiencies(
         colormap = cgrad(:Dark2_8, n_configs, categorical = true)
         colors = [colormap[i] for i = 1:n_configs]
     end
-
-    # Update title to include misID rate
-    title = "$title (Target MisID: $(100*misid_rate)%)"
 
     # Calculate per-bin efficiency for each classifier
     bin_data_list = []
@@ -893,7 +881,7 @@ end
         min_samples = 10,
         show_bin_edges = true,
         tick_format = x -> string(Int(round(x))),
-        figsize = (500, 300)
+        figsize = (500, 400)
     )
 
 Creates a bar histogram showing the fraction of non-zero scores per momentum bin.
@@ -928,7 +916,7 @@ function plot_nonzero_fraction_histogram(
     min_samples = 10,
     show_bin_edges = true,
     tick_format = x -> string(Int(round(x))),
-    figsize = (500, 300),
+    figsize = (500, 400),
 )
     # Calculate fraction of non-zero scores per bin
     fraction_data = fraction_nonzero_per_momentum_bin(scores, momentum, bin_edges)
@@ -981,7 +969,7 @@ function plot_nonzero_fraction_histogram(
     ax.ygridvisible = true
 
     # Set y-axis limits from 0 to 1 for fraction
-    ax.limits = (nothing, nothing, 0, 1.05)
+    ax.limits = (bin_edges[begin], bin_edges[end], 0, 1.10)
 
     # Set y-axis ticks to 0, 0.2, 0.4, 0.6, 0.8, 1.0
     ax.yticks = 0:0.2:1.0
@@ -1018,12 +1006,12 @@ function compare_performance_curve(
     kwargs...,
 )
 
-    title = get(kwargs, :title, "Misid Probability vs Efficiency")
+    title = get(kwargs, :title, "MisID Probability vs Efficiency")
     xlabel = get(kwargs, :xlabel, "Efficiency")
-    ylabel = get(kwargs, :ylabel, "Misid Probability")
+    ylabel = get(kwargs, :ylabel, "MisID Probability")
     legend_position = get(kwargs, :legend_position, :lt)
     logy = get(kwargs, :logy, false)
-    figsize = get(kwargs, :figsize, (600, 400))
+    figsize = get(kwargs, :figsize, (500, 400))
 
     n_configs = length(scores_list)
     @assert length(labels_list) == n_configs "Must provide same number of label vectors as score vectors"
