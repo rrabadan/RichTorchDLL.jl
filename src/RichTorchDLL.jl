@@ -21,7 +21,8 @@ export histogram_plot!,
     multi_histogram,
     histogram_grid,
     histogram_with_ratio,
-    add_luminosity_text!
+    add_luminosity_text!,
+    save_figure
 export trackentry_heatmap
 export find_workingpoints,
     misid_eff_points,

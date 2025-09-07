@@ -707,3 +707,17 @@ function add_luminosity_text!(
         font = :bold,
     )
 end
+
+function save_figure(
+    fig,
+    filename::String;
+    figdir::String = "./figures",
+    ext::String = "png",
+)
+    figpath = joinpath(figdir, "$(filename).$(ext)")
+    # ensure directory exists (including any subdirectories in filename)
+    mkpath(dirname(figpath))
+    # Makie's save expects (filename, figure)
+    save(figpath, fig)
+    println("Figure saved to: $figpath")
+end
