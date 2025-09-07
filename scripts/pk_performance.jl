@@ -61,7 +61,7 @@ end
 # Figure subdirectory
 fig_subdir = "$(args["luminosity"])-$(args["scenario"])/proton-kaon"
 if no_central_modules
-    fig_subdir = "$(args["luminosity"])-$(args["scenario"])-nocentralmod/proton-kaon"
+    fig_subdir = "$(args["luminosity"])-$(args["scenario"])/nocentralmod/proton-kaon"
 end
 savefig_func =
     (fig, filename, kwargs...) ->
@@ -318,14 +318,17 @@ bin_centers_list = [rich_bin_data.bin_centers, comb_bin_data.bin_centers]
 bin_eff_list = [rich_bin_data.efficiency, comb_bin_data.efficiency]
 bin_efferr_list = [rich_bin_data.efficiency_error, comb_bin_data.efficiency_error]
 
+yaxis_title_effcomp = L"K^{\pm} \text{ efficiency for 5% } \pi^{\pm} \text{ misID rate}"
+
 eff_comparison = compare_bin_efficiency_data(
     bin_centers_list,
     bin_eff_list,
     bin_efferr_list,
     momentum_bins;
     labels = ["RICH", "RICH+TORCH"],
-    title = "Proton Efficiency (5% Kaon Misid)",
+    title = "",
     xlabel = "Momentum [GeV/c]",
+    ylabel = yaxis_title_effcomp,
     colors = [:royalblue, :black],
     legend_position = :rb,
     luminosity = luminosity_text,
@@ -343,7 +346,7 @@ eff_vcombined = efficiency_vs_momentum_with_per_bin_misid(
     vmomentum,
     target_misid,
     momentum_bins;
-    title = "Combined Efficiency",
+    title = "RICH + TORCH efficiency",
     xlabel = "Momentum [GeV/c]",
     ylabel = yaxis_title_effmom,
     color = :black,
@@ -360,8 +363,9 @@ eff_combined_comparison = compare_bin_efficiency_data(
     [combined_bin_data.efficiency_error, vcombined_bin_data.efficiency_error],
     momentum_bins;
     labels = ["All Tracks", "Tracks with valid DLL"],
-    title = "Combined Proton Efficiency (5% Kaon Misid)",
+    title = "RICH + TORCH efficiency",
     xlabel = "Momentum [GeV/c]",
+    ylabel = yaxis_title_effcomp,
     colors = [:black, :black],
     linestyles = [:solid, :dash],
     legend_position = :rb,
@@ -382,8 +386,9 @@ eff_vcomparison = compare_bin_efficiency_data(
     bin_efferr_list,
     momentum_bins;
     labels = ["RICH", "RICH+TORCH"],
-    title = "Kaon Efficiency",
+    title = "Proton Efficiency",
     xlabel = "Momentum [GeV/c]",
+    ylabel = yaxis_title_effcomp,
     colors = [:royalblue, :black],
     legend_position = :rb,
     luminosity = luminosity_text,
@@ -398,6 +403,10 @@ curves, curves_log = compare_performance_curve(
     all_labels,
     ["RICH", "RICH+TORCH"],
     [:royalblue, :black],
+    title = " 2 < p < 20 GeV/c",
+    xlabel = L"p(\bar{p}) \text{ efficiency}",
+    ylabel = L"K^{\pm} \text{ missID rate}",
+    luminosity = luminosity_text,
 )
 
 all_vscores = [vrichtorch.RichDLLp - vrichtorch.RichDLLk, combined_vdll]
@@ -409,6 +418,10 @@ vcurves, vcurves_log = compare_performance_curve(
     all_vlabels,
     ["RICH", "RICH+TORCH"],
     [:royalblue, :black],
+    title = " 2 < p < 20 GeV/c",
+    xlabel = L"p(\bar{p}) \text{ efficiency}",
+    ylabel = L"K^{\pm} \text{ missID rate}",
+    luminosity = luminosity_text,
 )
 
 # Save figures

@@ -63,7 +63,7 @@ end
 # Figure subdirectory
 fig_subdir = "$(args["luminosity"])-$(args["scenario"])/kaon-pion"
 if no_central_modules
-    fig_subdir = "$(args["luminosity"])-$(args["scenario"])-nocentralmod/kaon-pion"
+    fig_subdir = "$(args["luminosity"])-$(args["scenario"])/nocentralmod/kaon-pion"
 end
 savefig_func =
     (fig, filename, kwargs...) ->
