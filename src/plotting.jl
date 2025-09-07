@@ -205,7 +205,6 @@ function multi_histogram!(
             framealpha = 0.1,
         )
     end
-    add_top_right_text!(f[1, 1], L"L=1×10^{34} cm^{-2}s^{-1}")
     return ax
 end
 

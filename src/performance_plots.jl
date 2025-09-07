@@ -981,6 +981,7 @@ function compare_performance_curve(
     labels_list::Vector{<:AbstractVector{<:Integer}},
     legends_list::Vector{String},
     colors_list::Vector{Symbol};
+    linestyles = nothing,
     kwargs...,
 )
 
@@ -1023,6 +1024,7 @@ function compare_performance_curve(
     )
 
     for i = 1:n_configs
+        linestyle = isnothing(linestyles) ? :solid : linestyles[i]
         misid_eff = misid_eff_dataframe(scores_list[i], labels_list[i]; compress = true)
         lines!(
             ax,
@@ -1030,7 +1032,7 @@ function compare_performance_curve(
             misid_eff.misid;
             label = legends_list[i],
             linewidth = 2,
-            linestyle = :solid,
+            linestyle = linestyle,
             color = colors_list[i],
         )
         lines!(
@@ -1039,7 +1041,7 @@ function compare_performance_curve(
             misid_eff.misid;
             label = legends_list[i],
             linewidth = 2,
-            linestyle = :solid,
+            linestyle = linestyle,
             color = colors_list[i],
         )
     end
