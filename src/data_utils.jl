@@ -42,6 +42,11 @@ function load_data(
         "TorchDLLp",      # DLL variables
         "MCParticleType", # True particle ID
         "TrackP",         # Momentum
+        "TrackPt",         # Momentum
+        "TrackType",
+        "TrackChi2PerDof",
+        "RichUsedR2Gas",
+        "RichUsedR1Gas",
     ]
 
     # Read tree
@@ -214,6 +219,14 @@ function filter_by_momentum!(df::DataFrame, min_p::Real, max_p::Real)
     filter!(:TrackP => p -> min_p < p < max_p, df)
 end
 
+function filter_by_pt(df::DataFrame, min_pt::Real, max_pt::Real)
+    return filter(:TrackPt => pt -> min_pt < pt < max_pt, df)
+end
+
+function filter_by_pt!(df::DataFrame, min_pt::Real, max_pt::Real)
+    filter!(:TrackPt => pt -> min_pt < pt < max_pt, df)
+end
+
 """
     filter_by_dll_range(df, min_dll, max_dll; dll_columns=["RichDLLk", "RichDLLp", "TorchDLLk", "TorchDLLp"])
 
@@ -232,7 +245,7 @@ function filter_by_dll_range(
     df::DataFrame,
     min_dll::Real,
     max_dll::Real;
-    dll_columns = ["RichDLLk", "RichDLLp", "TorchDLLk", "TorchDLLp"],
+    dll_columns=["RichDLLk", "RichDLLp", "TorchDLLk", "TorchDLLp"],
 )
     # Check which of the specified DLL columns exist in the DataFrame
     valid_columns = []
@@ -259,7 +272,7 @@ function filter_by_dll_range!(
     df::DataFrame,
     min_dll::Real,
     max_dll::Real;
-    dll_columns = ["RichDLLk", "RichDLLp", "TorchDLLk", "TorchDLLp"],
+    dll_columns=["RichDLLk", "RichDLLp", "TorchDLLk", "TorchDLLp"],
 )
     # Check which of the specified DLL columns exist in the DataFrame
     valid_columns = []
@@ -296,7 +309,7 @@ A filtered DataFrame with valid DLL values for all specified columns
 """
 function filter_valid_dll(
     df::DataFrame;
-    dll_columns = ["RichDLLk", "RichDLLp", "TorchDLLk", "TorchDLLp"],
+    dll_columns=["RichDLLk", "RichDLLp", "TorchDLLk", "TorchDLLp"],
 )
     # Check which of the specified DLL columns exist in the DataFrame
     valid_columns = []
@@ -326,7 +339,7 @@ end
 
 function filter_valid_dll!(
     df::DataFrame;
-    dll_columns = ["RichDLLk", "RichDLLp", "TorchDLLk", "TorchDLLp"],
+    dll_columns=["RichDLLk", "RichDLLp", "TorchDLLk", "TorchDLLp"],
 )
     # Check which of the specified DLL columns exist in the DataFrame
     valid_columns = []
@@ -366,7 +379,7 @@ This is a convenience wrapper around filter_valid_dll.
 A filtered DataFrame with valid TORCH DLL values
 """
 function filter_valid_torch(df::DataFrame)
-    return filter_valid_dll(df, dll_columns = ["TorchDLLk", "TorchDLLp"])
+    return filter_valid_dll(df, dll_columns=["TorchDLLk", "TorchDLLp"])
 end
 
 """
@@ -382,7 +395,10 @@ This is a convenience wrapper around filter_valid_dll.
 A filtered DataFrame with valid RICH DLL values
 """
 function filter_valid_rich(df::DataFrame)
-    return filter_valid_dll(df, dll_columns = ["RichDLLk", "RichDLLp"])
+    #return filter_valid_dll(df, dll_columns=["RichDLLk", "RichDLLp"])
+    fdf = filter([:TrackType, :TrackChi2PerDof] => (t, chi2) -> t == 3 && chi2 < 5, df)
+    filter!([:RichUsedR1Gas, :RichUsedR2Gas] => (r1, r2) -> r1 == true && r2 == true, fdf)
+    return fdf
 end
 
 """
@@ -390,6 +406,8 @@ end
                     particle_types = [is_kaon, is_pion],
                     min_p = 2000,
                     max_p = 15000,
+                    min_pt = 500,
+                    max_pt = 100000,
                     min_dll = -100,
                     max_dll = 100,
                     dll_columns = ["RichDLLk", "RichDLLp", "TorchDLLk", "TorchDLLp"])
@@ -401,6 +419,8 @@ Prepare a dataset by applying standard filtering steps.
 - `particle_types`: List of functions like `is_kaon`, `is_pion`, `is_proton`
 - `min_p`: Minimum momentum in MeV/c
 - `max_p`: Maximum momentum in MeV/c
+- `min_pt`: Minimum transverse momentum in MeV/c
+- `max_pt`: Maximum transverse momentum in MeV/c
 - `min_dll`: Minimum DLL value
 - `max_dll`: Maximum DLL value
 - `dll_columns`: List of DLL column names to filter. Default includes both RICH and TORCH DLLs.
@@ -414,12 +434,14 @@ A named tuple with the filtered DataFrames:
 """
 function prepare_dataset(
     df::DataFrame;
-    particle_types = [is_kaon, is_pion],
-    min_p = 2000,
-    max_p = 20000,
-    min_dll = -200,
-    max_dll = 200,
-    dlls = ["DLLk", "DLLp"],
+    particle_types=[is_kaon, is_pion],
+    min_p=2000,
+    max_p=200000,
+    min_pt=500,
+    max_pt=100000,
+    min_dll=-200,
+    max_dll=200,
+    dlls=["DLLk", "DLLp"],
 )
     dll_columns = String[]
     dll_torch_columns = String[]
@@ -440,25 +462,31 @@ function prepare_dataset(
         "$(nrow(filtered)) entries after filtering for tracks with momentum range [$(min_p/1000), $(max_p/1000)] GeV/c",
     )
 
+    # Filter by momentum
+    filtered = filter_by_pt(filtered, min_pt, max_pt)
+    println(
+        "$(nrow(filtered)) entries after filtering for tracks with momentum range [$(min_pt/1000), $(max_pt/1000)] GeV/c",
+    )
+
     # Filter by DLL range
-    filtered = filter_by_dll_range(filtered, min_dll, max_dll, dll_columns = dll_columns)
+    filtered = filter_by_dll_range(filtered, min_dll, max_dll, dll_columns=dll_columns)
     println("$(nrow(filtered)) entries after filtering for DLL in [$(min_dll), $(max_dll)]")
 
     # Create versions with valid DLLs
-    torch_filtered = filter_valid_dll(filtered, dll_columns = dll_torch_columns)
+    torch_filtered = filter_valid_dll(filtered, dll_columns=dll_torch_columns)
     println("$(nrow(torch_filtered)) entries after filtering for valid TORCH DLL")
 
-    rich_filtered = filter_valid_dll(filtered, dll_columns = dll_rich_columns)
+    rich_filtered = filter_valid_rich(filtered)
     println("$(nrow(rich_filtered)) entries after filtering for valid RICH DLL")
 
-    all_valid = filter_valid_dll(filtered, dll_columns = dll_columns)
+    all_valid = filter_valid_rich(torch_filtered)
     println("$(nrow(all_valid)) entries after filtering for all valid DLLs")
 
     return (
-        filtered = filtered,
-        torch = torch_filtered,
-        rich = rich_filtered,
-        all_valid = all_valid,
+        filtered=filtered,
+        torch=torch_filtered,
+        rich=rich_filtered,
+        all_valid=all_valid,
     )
 end
 
