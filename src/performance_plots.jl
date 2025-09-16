@@ -1055,7 +1055,7 @@ function compare_performance_curve(
 
     # Set y-axis limits from 0 to 1 for efficiency
     ax.limits = (0, 1.0, 0, 1.0)
-    ax_log.limits = (0, 1.0, 1e-2, 1.0)
+    ax_log.limits = (0, 1.0, 5e-3, 1.0)
 
     # Set x-axis ticks to 0, 0.2, 0.4, 0.6, 0.8, 1.0
     ax.xticks = 0:0.2:1.0
@@ -1063,7 +1063,7 @@ function compare_performance_curve(
 
     # Set y-axis ticks
     ax.yticks = 0:0.2:1.0
-    ax_log.yticks = [0.01, 0.05, 0.1, 0.5, 1.0]
+    ax_log.yticks = [0.005, 0.01, 0.05, 0.1, 0.5, 1.0]
 
     luminosity = get(kwargs, :luminosity, nothing)
     add_legend!(ax, luminosity, position = legend_position)

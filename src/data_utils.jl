@@ -245,7 +245,7 @@ function filter_by_dll_range(
     df::DataFrame,
     min_dll::Real,
     max_dll::Real;
-    dll_columns=["RichDLLk", "RichDLLp", "TorchDLLk", "TorchDLLp"],
+    dll_columns = ["RichDLLk", "RichDLLp", "TorchDLLk", "TorchDLLp"],
 )
     # Check which of the specified DLL columns exist in the DataFrame
     valid_columns = []
@@ -272,7 +272,7 @@ function filter_by_dll_range!(
     df::DataFrame,
     min_dll::Real,
     max_dll::Real;
-    dll_columns=["RichDLLk", "RichDLLp", "TorchDLLk", "TorchDLLp"],
+    dll_columns = ["RichDLLk", "RichDLLp", "TorchDLLk", "TorchDLLp"],
 )
     # Check which of the specified DLL columns exist in the DataFrame
     valid_columns = []
@@ -309,7 +309,7 @@ A filtered DataFrame with valid DLL values for all specified columns
 """
 function filter_valid_dll(
     df::DataFrame;
-    dll_columns=["RichDLLk", "RichDLLp", "TorchDLLk", "TorchDLLp"],
+    dll_columns = ["RichDLLk", "RichDLLp", "TorchDLLk", "TorchDLLp"],
 )
     # Check which of the specified DLL columns exist in the DataFrame
     valid_columns = []
@@ -339,7 +339,7 @@ end
 
 function filter_valid_dll!(
     df::DataFrame;
-    dll_columns=["RichDLLk", "RichDLLp", "TorchDLLk", "TorchDLLp"],
+    dll_columns = ["RichDLLk", "RichDLLp", "TorchDLLk", "TorchDLLp"],
 )
     # Check which of the specified DLL columns exist in the DataFrame
     valid_columns = []
@@ -379,7 +379,7 @@ This is a convenience wrapper around filter_valid_dll.
 A filtered DataFrame with valid TORCH DLL values
 """
 function filter_valid_torch(df::DataFrame)
-    return filter_valid_dll(df, dll_columns=["TorchDLLk", "TorchDLLp"])
+    return filter_valid_dll(df, dll_columns = ["TorchDLLk", "TorchDLLp"])
 end
 
 """
@@ -434,14 +434,14 @@ A named tuple with the filtered DataFrames:
 """
 function prepare_dataset(
     df::DataFrame;
-    particle_types=[is_kaon, is_pion],
-    min_p=2000,
-    max_p=200000,
-    min_pt=500,
-    max_pt=100000,
-    min_dll=-200,
-    max_dll=200,
-    dlls=["DLLk", "DLLp"],
+    particle_types = [is_kaon, is_pion],
+    min_p = 2000,
+    max_p = 200000,
+    min_pt = 500,
+    max_pt = 100000,
+    min_dll = -200,
+    max_dll = 200,
+    dlls = ["DLLk", "DLLp"],
 )
     dll_columns = String[]
     dll_torch_columns = String[]
@@ -469,11 +469,11 @@ function prepare_dataset(
     )
 
     # Filter by DLL range
-    filtered = filter_by_dll_range(filtered, min_dll, max_dll, dll_columns=dll_columns)
+    filtered = filter_by_dll_range(filtered, min_dll, max_dll, dll_columns = dll_columns)
     println("$(nrow(filtered)) entries after filtering for DLL in [$(min_dll), $(max_dll)]")
 
     # Create versions with valid DLLs
-    torch_filtered = filter_valid_dll(filtered, dll_columns=dll_torch_columns)
+    torch_filtered = filter_valid_dll(filtered, dll_columns = dll_torch_columns)
     println("$(nrow(torch_filtered)) entries after filtering for valid TORCH DLL")
 
     rich_filtered = filter_valid_rich(filtered)
@@ -483,10 +483,10 @@ function prepare_dataset(
     println("$(nrow(all_valid)) entries after filtering for all valid DLLs")
 
     return (
-        filtered=filtered,
-        torch=torch_filtered,
-        rich=rich_filtered,
-        all_valid=all_valid,
+        filtered = filtered,
+        torch = torch_filtered,
+        rich = rich_filtered,
+        all_valid = all_valid,
     )
 end
 
