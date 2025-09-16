@@ -173,8 +173,10 @@ momentum_bins = [
     19.0,
     20.0,
 ]
-misid_rate = 0.05
-yaxis_title_effcomp = L"p(\bar{p}) \text{ efficiency for 5% } K^{\pm} \text{ misID rate}"
+
+misid_rate = 0.01
+misid_rate_torch = 0.05
+yaxis_title_effcomp = L"p(\bar{p}) \text{ efficiency for 1% } K^{\pm} \text{ misID rate}"
 
 torch_dll_base = torch_base.TorchDLLp - torch_base.TorchDLLk
 torch_momentum_base = torch_base.TrackP ./ 1000  # Convert to GeV

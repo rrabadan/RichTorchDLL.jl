@@ -93,8 +93,10 @@ datasets = prepare_dataset(
     particle_types = [is_pion, is_kaon],
     min_p = 2000,
     max_p = 15000,
-    min_dll = -300,
-    max_dll = 300,
+    min_pt = 500,
+    max_pt = 100000,
+    min_dll = -1000,
+    max_dll = 1000,
     dlls = ["DLLk"],
 )
 
@@ -196,8 +198,9 @@ println("Plotting efficiency vs momentum...")
 # Define momentum bins (in GeV/c)
 momentum_bins = [2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0]
 
-# Find threshold for 5% misid rate
-target_misid = 0.05
+# Find threshold for 1% and 5% misid rate
+target_misid = 0.01
+target_misid_torch = 0.01
 
 yaxis_title_effmom = L"K^{\pm} \text{efficiency (} \pi^{\pm} \text{ misID rate})"
 
@@ -255,7 +258,7 @@ eff_vtorch = efficiency_vs_momentum_with_per_bin_misid(
     vtorch_dllk,
     vtorch_labels,
     vtorch_momentum,
-    target_misid,
+    target_misid_torch,
     momentum_bins;
     title = "TORCH Efficiency",
     xlabel = "Momentum [GeV/c]",
@@ -269,7 +272,7 @@ eff_torch = efficiency_vs_momentum_with_per_bin_misid(
     torch_dllk,
     labels,
     momentum,
-    target_misid,
+    target_misid_torch,
     momentum_bins;
     title = "TORCH Efficiency",
     xlabel = "Momentum [GeV/c]",
@@ -319,7 +322,7 @@ bin_centers_list = [rich_bin_data.bin_centers, comb_bin_data.bin_centers]
 bin_eff_list = [rich_bin_data.efficiency, comb_bin_data.efficiency]
 bin_efferr_list = [rich_bin_data.efficiency_error, comb_bin_data.efficiency_error]
 
-yaxis_title_effcomp = L"K^{\pm} \text{ efficiency for 5% } \pi^{\pm} \text{ misID rate}"
+yaxis_title_effcomp = L"K^{\pm} \text{ efficiency for 1% } \pi^{\pm} \text{ misID rate}"
 
 eff_comparison = compare_bin_efficiency_data(
     bin_centers_list,
